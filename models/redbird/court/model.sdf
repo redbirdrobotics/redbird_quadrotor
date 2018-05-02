@@ -1,0 +1,13 @@
+<?xml version='1.0'?>
+<sdf version='1.6'>
+<model name='iarc_mission_7a_court'>
+  <static>true</static>
+  <link name="">
+    <visual>
+      <geometry>
+        
+      </geometry>
+    </visual>
+  </link>
+</model>
+</sdf>
