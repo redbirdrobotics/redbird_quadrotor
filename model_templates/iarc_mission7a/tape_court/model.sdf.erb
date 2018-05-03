@@ -1,0 +1,23 @@
+<?xml version='1.0'?>
+<sdf version='1.6'>
+<model name='tape_court'>
+  <static>true</static>
+
+  <%# add all columns %>
+  <% columns.each do |column| %>
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose><%= column[:pose] %></pose>
+  </include>
+  <% end %>
+
+  <%# add all rows %>
+  <% rows.each do |row| %>
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose><%= row[:pose] %></pose>
+  </include>
+  <% end %>
+
+</model>
+</sdf>
