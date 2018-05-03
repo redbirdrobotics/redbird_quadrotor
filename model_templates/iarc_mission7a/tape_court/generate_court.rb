@@ -10,6 +10,8 @@ def degrees_to_radians(degrees)
   return degrees * Math::PI / 180.0
 end
 
+
+# %%%%%%%%%%%%%%% CONFIGURATIONS %%%%%%%%%%%%%%%
 COLUMN_ATTITUDE_RADIANS = {
   :roll  => 0.0,
   :pitch => 0.0,
@@ -26,6 +28,17 @@ WIDTH_COURT = 20   # integral meters
 WIDTH_TILE = 1     # integral meters
 WIDTH_TAPE = 0.05  # meters
 COURT_ALTITUDE = 0.0
+# %%%%%%%%%%%%%%% END CONFIGURATIONS %%%%%%%%%%%%%%%
+
+TAPE_THICKNESS = 0.0003 # (meters) 0.3mm ~ 12 mils ~ duct tape thickness
+
+module TapeStripUri
+  WHITE =  'model://tape_strip'
+  RED =    'model://tape_strip_red'
+  GREEN =  'model://tape_strip_green'
+end
+
+
 
 # where do these formulas (below) come from? see link in header above
 
@@ -50,6 +63,7 @@ def row_position(i)
   return x, y
 end
 
+
 def main
   columns = []
   rows = []
@@ -57,11 +71,40 @@ def main
   column_attitude_str = "#{COLUMN_ATTITUDE_RADIANS[:roll]} #{COLUMN_ATTITUDE_RADIANS[:pitch]} #{COLUMN_ATTITUDE_RADIANS[:yaw]}"
   row_attitude_str = "#{ROW_ATTITUDE_RADIANS[:roll]} #{ROW_ATTITUDE_RADIANS[:pitch]} #{ROW_ATTITUDE_RADIANS[:yaw]}"
   z = COURT_ALTITUDE
-  (WIDTH_COURT + 1).times do |i|
+  num_columns_and_rows = WIDTH_COURT + 1
+  
+  num_columns_and_rows.times do |i|
     c_x, c_y = column_position(i)
     r_x, r_y = row_position(i)
-    columns << { :pose => "#{c_x} #{c_y} #{z} #{column_attitude_str}" }
-    rows    << { :pose => "#{r_x} #{r_y} #{z} #{row_attitude_str}" }
+
+    columns << {
+      :pose  => "#{c_x} #{c_y} #{z} #{column_attitude_str}",
+      :uri => TapeStripUri::WHITE,
+    }
+    
+    # row 0: GREEN and lays atop all other strips
+    # row n: RED   and lays atop all other strips
+    # the rest are WHITE, at court height
+    row_properties = lambda do
+      uri = TapeStripUri::WHITE
+      altitude = z
+
+      if i == 0 then
+        uri = TapeStripUri::GREEN
+        altitude += TAPE_THICKNESS
+      elsif i == (num_columns_and_rows - 1)
+        uri = TapeStripUri::RED
+        altitude += TAPE_THICKNESS
+      end
+
+      return uri, altitude
+    end
+    
+    row_uri, row_z = row_properties.call
+    rows << {
+      :pose  => "#{r_x} #{r_y} #{row_z} #{row_attitude_str}",
+      :uri => row_uri,
+    }
   end
 
   File.open('model.sdf' % @output_path, 'w') do |file|

@@ -3,7 +3,7 @@
 <model name='tape_court'>
   <static>true</static>
 
-  
+  <!-- columns -->
   
   <include>
     <uri>model://tape_strip</uri>
@@ -111,11 +111,11 @@
   </include>
   
 
-  
+  <!-- rows -->
   
   <include>
-    <uri>model://tape_strip</uri>
-    <pose>10.025 0.025 0.0 0.0 0.0 3.141592653589793</pose>
+    <uri>model://tape_strip_green</uri>
+    <pose>10.025 0.025 0.0003 0.0 0.0 3.141592653589793</pose>
   </include>
   
   <include>
@@ -214,8 +214,8 @@
   </include>
   
   <include>
-    <uri>model://tape_strip</uri>
-    <pose>10.025 20.025 0.0 0.0 0.0 3.141592653589793</pose>
+    <uri>model://tape_strip_red</uri>
+    <pose>10.025 20.025 0.0003 0.0 0.0 3.141592653589793</pose>
   </include>
   
 

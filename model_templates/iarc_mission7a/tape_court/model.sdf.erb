@@ -3,18 +3,18 @@
 <model name='tape_court'>
   <static>true</static>
 
-  <%# add all columns %>
+  <!-- columns -->
   <% columns.each do |column| %>
   <include>
-    <uri>model://tape_strip</uri>
+    <uri><%= column[:uri] %></uri>
     <pose><%= column[:pose] %></pose>
   </include>
   <% end %>
 
-  <%# add all rows %>
+  <!-- rows -->
   <% rows.each do |row| %>
   <include>
-    <uri>model://tape_strip</uri>
+    <uri><%= row[:uri] %></uri>
     <pose><%= row[:pose] %></pose>
   </include>
   <% end %>

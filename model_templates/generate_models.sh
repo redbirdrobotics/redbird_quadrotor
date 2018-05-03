@@ -2,9 +2,8 @@
 
 set -e
 
-readonly HERE=$(readlink -f .)
-readonly GENERATED_MODELS_DIR=${HERE}/generated_models
-readonly 
+readonly THIS_DIR=$(readlink -f .)
+readonly GENERATED_MODELS_DIR=${THIS_DIR}/generated_models
 
 # generate tape strip
 # --> currently, fixed values at competition spec
@@ -15,4 +14,4 @@ cd iarc_mission7a/tape_court
 
 cd ..
 
-cp -r tape_court/ tape_strip/ ${GENERATED_MODELS_DIR}
+cp -r tape_court/ tape_strip*/ ${GENERATED_MODELS_DIR}
