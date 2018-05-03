@@ -1,3 +1,7 @@
+# keep generated models output dir
+model_templates/generated_models/*
+!model_templates/generated_models/.gitkeep
+
 # catkin
 build/
 devel/
