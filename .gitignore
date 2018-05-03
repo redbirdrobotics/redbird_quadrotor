@@ -1,32 +1,35 @@
-# Prerequisites
-*.d
+# catkin
+build/
+devel/
+logs/
+.catkin_tools/
 
-# Compiled Object files
+# vim
+*.swp
+
+# python
+*.pyc
+
+# c++
+*.d
 *.slo
 *.lo
 *.o
 *.obj
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
 *.mod
 *.smod
-
-# Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
-
-# Executables
 *.exe
 *.out
 *.app
+
+.vscode
+
