@@ -1,0 +1,1 @@
+Contents of this dir taken from team hector's quadrotor project at: https://github.com/tu-darmstadt-ros-pkg/hector_quadrotor
