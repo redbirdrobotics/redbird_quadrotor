@@ -1,3 +1,6 @@
+// This code below taken directly from PX4 example documentation
+
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -10,7 +13,7 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg) {
 }
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "offb_node");
+  ros::init(argc, argv, "quadrotor_controller");
   ros::NodeHandle nh;
 
   ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -44,8 +47,8 @@ int main(int argc, char **argv) {
 
   ros::Time last_request = ros::Time::now();
 
-  while(ros::ok() ) {
-  if( current_state.mode != "OFFBOARD" &&
+  while(ros::ok()) {
+    if (current_state.mode != "OFFBOARD" &&
   (ros::Time::now() - last_request > ros::Duration(5.0)) ) {
   if( set_mode_client.call(offb_set_mode) &&
    offb_set_mode.response.mode_sent ) {
