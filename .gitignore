@@ -1,0 +1,38 @@
+# catkin_tools
+build/
+devel/
+logs/
+.catkin_tools/
+
+# vim
+*.swp
+
+# python
+*.pyc
+
+# c++
+*.d
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.mod
+*.smod
+*.lai
+*.la
+*.a
+*.lib
+*.exe
+*.out
+*.app
+
+# vscode
+.vscode/
+
+# qt
+*.autosave
