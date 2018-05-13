@@ -1,5 +1,5 @@
-#ifndef RR_QUADROTOR_FLIGHTSYS_FLIGHTS_
-#define RR_QUADROTOR_FLIGHTSYS_FLIGHTS_
+#ifndef RR_QUADROTOR_FLIGHTSYS_FLIGHTS_HPP_
+#define RR_QUADROTOR_FLIGHTSYS_FLIGHTS_HPP_
 
 #include <functional>
 #include <utility>
@@ -24,7 +24,7 @@ class flight {
    *    Fly the given flight. Cancel the flight whenever the given
    *    cancellation_function returns a non- cancellation::none command.
    */
-  virtual void fly(canceller&& c) = 0;
+  virtual void fly(canceller c) = 0;
 
   virtual ~flight();
 };
@@ -33,4 +33,4 @@ class flight {
 } // namespace quadrotor
 } // namespace rr
 
-#endif // RR_QUADROTOR_FLIGHTSYS_FLIGHTS_
+#endif // RR_QUADROTOR_FLIGHTSYS_FLIGHTS_HPP_
