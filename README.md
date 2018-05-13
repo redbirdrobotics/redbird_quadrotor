@@ -20,9 +20,7 @@ make posix_sitl_default gazebo
 ### Start the Gazebo simulation and Mavros node
 ```sh
 cd px4-firmware && \
-source Tools/setup_gazebo.bash $(pwd) $(pwd)/build/posix_sitl_default && \
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$(pwd) && \
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$(pwd)/Tools/sitl_gazebo && \
+source setup_px4_sitl_gazebo.bash && \
 roslaunch px4 mavros_posix_sitl.launch
 ```
 
