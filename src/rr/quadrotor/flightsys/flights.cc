@@ -5,6 +5,7 @@
 #include <ros/ros.h>
 #include <mavros_msgs/PositionTarget.h>
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <utility>
@@ -16,49 +17,39 @@ namespace flightsys {
 
 flight::~flight() {};
 
-using target_position = mavros_msgs::PositionTarget;
+namespace {
+template <typename Duration>
+constexpr auto to_hz(Duration&& d) {
+  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+        std::forward<Duration>(d));
+  return 1. / seconds.count();
+}
+} // namespace
 
 
 struct takeoff_and_land_config {
-  decltype(target_position::position.z) target_altitude;
+  decltype(mavros_util::target_position::position.z) target_altitude;
+  std::function<void(mavros_util::target_position)> publish_setpoint_position;
   std::chrono::milliseconds publish_period;
 };
 
-class takeoff_and_land final : public flight {
- private:
-  std::function<void(mavros_util::target_position)> target_position_publisher;
-  takeoff_and_land_config config;
+auto
+takeoff_and_land(takeoff_and_land_config& config, canceller cancel_status) {
+  ros::ServiceClient c;
+  auto target_position = mavros_util::target_position{};
+  target_position.header.stamp = ros::Time::now();
+  target_position.header.frame_id = "base_link";
+  target_position.position.z = 2.;
+  target_position.type_mask
+      = mavros_util::ignore_all_but(mavros_util::target_position::IGNORE_PZ);
 
- public:
-  template <typename Config>
-  takeoff_and_land(Config&& c, ros::NodeHandle nh)
-    : config(std::forward<Config>(c))
-    , position_publisher(nh.advertise<target_position>(
-                           kMavrosSetpointLocalRawId,
-                           kMavrosSetpointLocalQueueSize
-                         ))
-  {}
+  auto rate = ros::Rate(to_hz(config.publish_period));
 
-  void fly(canceller c) {
-    while (c() == cancellation::none) {
-      target_position target_position{};
-
-      target_position.header.stamp = ros::Time::now();
-      target_position.header.frame_id = "base_link";
-
-      // ignore all but YAW_RATE and velocities x, y, and z
-      target_position.type_mask
-          = ::rr::mavros_util::ignore_all_but(target_position::IGNORE_PZ);
-      target_position.position.z = 2.;
-
-//      ros::Rate r(20); // 20 hz
-//      while (ros::ok()) {
-//        setpoint_raw_publisher.publish(target_position);
-//        r.sleep();
-//      }
-    }
+  while (cancel_status() == cancellation::none) {
+    config.publish_setpoint_position(target_position);
+    rate.sleep();
   }
-};
+}
 
 } // namespace flightsys
 } // namespace quadrotor

@@ -2,7 +2,7 @@
 #define RR_MAVROS_UTIL_HPP_
 
 #include <mavros_msgs/PositionTarget.h>
-
+#include <mavros_msgs/State.h>
 #include <string>
 
 namespace rr {
@@ -57,6 +57,12 @@ ignore_all_but(decltype(kIgnoreAll) mask = 0) {
   return kIgnoreAll ^ mask;
 }
 
+inline auto
+fully_ignored_mavros_setpoint_position() {
+  auto setpoint_position_msg = target_position{};
+  setpoint_position_msg.type_mask = kIgnoreAll;
+  return setpoint_position_msg;
+}
 
 } // namespace mavros_util
 } // namespace rr
