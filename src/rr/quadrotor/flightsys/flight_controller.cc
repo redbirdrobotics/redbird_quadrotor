@@ -6,6 +6,7 @@ namespace quadrotor {
 namespace flightsys {
 
 i_flight_controller::~i_flight_controller() {};
+i_quadrotor_interfaces::~i_flight_controller_config() {};
 
 void flight_controller::update_positions() {
   while (!destructor_called_) {

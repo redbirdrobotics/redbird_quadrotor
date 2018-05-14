@@ -17,7 +17,6 @@ namespace rr {
 namespace quadrotor {
 namespace flightsys {
 
-
 /**
  * @brief
  *    The interface through which flight_controller objects will perform its
@@ -26,6 +25,18 @@ namespace flightsys {
  * @note
  *    The functions provided here may be called from other threads.
  */
+class i_quadrotor_interfaces {
+ public:
+  virtual void
+  publish_setpoint_position(const mavros_util::target_position& target);
+
+  virtual geometry_msgs::PoseStamped
+  get_current_position() const = 0;
+
+  virtual ~i_quadrotor_interfaces();
+};
+
+
 struct flight_controller_config final {
   std::function<void(const mavros_util::target_position&)> publish_setpoint_position;
 
@@ -90,7 +101,7 @@ class flight_controller : public i_flight_controller {
  private:
   using lock_guard = std::lock_guard<std::mutex>;
 
-  std::unique_ptr<flight_controller_config> config_;
+  std::unique_ptr<flight_controller_config> quadrotor_interfaces;
 
   mavros_util::target_position target_position_;
   mutable std::mutex target_position_mutex_;
