@@ -46,10 +46,3 @@ TEST(MavrosUtil, ignore_all_but_nothing) {
   auto all_but_nothing = ignore_all_but();
   EXPECT_EQ(kIgnoreAll, all_but_nothing);
 }
-
-
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

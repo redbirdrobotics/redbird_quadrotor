@@ -192,7 +192,9 @@ target_link_libraries(${PROJECT_NAME}_node
 
 ## Add gtest based cpp test target and link libraries
 catkin_add_gtest(${PROJECT_NAME}-test
+  test/run_all_tests.cc
   src/rr/mavros_util/mavros_util_unittests.cc
+  src/rr/quadrotor/flightsys/flight_controller_unittests.cc
 )
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})

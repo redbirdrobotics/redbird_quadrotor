@@ -97,56 +97,56 @@ class i_flight_controller {
 
 
 
-class flight_controller : public i_flight_controller {
- private:
-  using lock_guard = std::lock_guard<std::mutex>;
+//class flight_controller : public i_flight_controller {
+// private:
+//  using lock_guard = std::lock_guard<std::mutex>;
 
-  std::unique_ptr<flight_controller_config> quadrotor_interfaces;
+//  std::unique_ptr<flight_controller_config> quadrotor_interfaces;
 
-  mavros_util::target_position target_position_;
-  mutable std::mutex target_position_mutex_;
-  geometry_msgs::PoseStamped current_position_;
-  mutable std::mutex current_position_mutex_;
+//  mavros_util::target_position target_position_;
+//  mutable std::mutex target_position_mutex_;
+//  geometry_msgs::PoseStamped current_position_;
+//  mutable std::mutex current_position_mutex_;
 
-  std::atomic_bool destructor_called_{ false };
+//  std::atomic_bool destructor_called_{ false };
 
-  void update_positions();
+//  void update_positions();
 
-  std::thread publish_until_destruct_thread;
+//  std::thread publish_until_destruct_thread;
 
- public:
-  flight_controller(
-      decltype(config_) config,
-      const mavros_util::target_position& target_position
-        = mavros_util::fully_ignored_mavros_setpoint_position())
-    : config_(std::move(config))
-    , target_position_(target_position)
-  {
-    publish_until_destruct_thread = std::thread(
-      std::bind(&flight_controller::update_positions, this)
-    );
-  }
+// public:
+//  flight_controller(
+//      decltype(config_) config,
+//      const mavros_util::target_position& target_position
+//        = mavros_util::fully_ignored_mavros_setpoint_position())
+//    : config_(std::move(config))
+//    , target_position_(target_position)
+//  {
+//    publish_until_destruct_thread = std::thread(
+//      std::bind(&flight_controller::update_positions, this)
+//    );
+//  }
 
-  mavros_util::target_position
-  target_position() const {
-    lock_guard lock{ target_position_mutex_ };
-    return target_position_;
-  }
+//  mavros_util::target_position
+//  target_position() const {
+//    lock_guard lock{ target_position_mutex_ };
+//    return target_position_;
+//  }
 
-  void
-  set_target_position(mavros_util::target_position new_target) {
-    lock_guard lock{ target_position_mutex_ };
-    target_position_ = new_target;
-  }
+//  void
+//  set_target_position(mavros_util::target_position new_target) {
+//    lock_guard lock{ target_position_mutex_ };
+//    target_position_ = new_target;
+//  }
 
-  virtual geometry_msgs::PoseStamped
-  get_current_position() const {
-    lock_guard lock{ current_position_mutex_ };
-    return current_position_;
-  }
+//  virtual geometry_msgs::PoseStamped
+//  get_current_position() const {
+//    lock_guard lock{ current_position_mutex_ };
+//    return current_position_;
+//  }
 
-  virtual ~flight_controller();
-};
+//  virtual ~flight_controller();
+//};
 
 
 
