@@ -8,11 +8,24 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 
+#include <cstddef>
 #include <functional>
+#include <string>
+#include <type_traits>
+
 
 // TODO: this class should know less. In particular, don't pass NodeHandle in
 // c'tor.
 class mavros_mode_adapter {
+ public:
+  enum class server_response {
+    success,
+    denied,
+    fcu_not_connected,
+    cannot_reach_server,
+  };
+
+ private:
   ros::ServiceClient arming_client;
 
   ros::ServiceClient set_mode_client;
@@ -26,19 +39,32 @@ class mavros_mode_adapter {
   static constexpr const char* const
     kMavrosStateTopic_Id = "mavros/state";
 
-  mavros_msgs::State mavros_state;
+  mavros_msgs::State mavros_state_;
+  mavros_msgs::CommandBool arm_cmd_;
+  mavros_msgs::SetMode operating_mode_cmd_;
 
-  mavros_msgs::CommandBool arm_cmd;
+  template <typename CallServer, typename CheckSuccess>
+  server_response
+  call_server(CallServer&& call_server, CheckSuccess&& success) {
+    using r = server_response;
 
-  bool set_armed_mode(bool arm) {
-    arm_cmd.request.value = arm;
-    ROS_INFO_STREAM("Attempting to " << (arm ? "arm" : "disarm") << " vehicle");
+    if (!mavros_state_.connected)
+      return r::fcu_not_connected;
 
-    auto call_successful = arming_client.call(arm_cmd);
-    ROS_ERROR_COND(!call_successful, "Could not open connection to mavros arming server");
+    auto able_to_reach_server = std::forward<CallServer>(call_server)();
+    if (!able_to_reach_server)
+      return r::cannot_reach_server;
 
-    ROS_INFO_STREAM("Vehicle " << (arm_cmd.response.result ? "armed" : "disarmed"));
-    return arm_cmd.response.success;
+    return std::forward<CheckSuccess>(success)() ? r::success : r::denied;
+  }
+
+  auto
+  set_armed(bool arm) {
+    arm_cmd_.request.value = arm;
+    return call_server(
+      [&]{ return arming_client.call(arm_cmd_); },
+      [&]{ return arm_cmd_.response.success; }
+    );
   }
 
  public:
@@ -49,51 +75,49 @@ class mavros_mode_adapter {
     set_mode_client
         = nh.serviceClient<mavros_msgs::SetMode>(kMavrosSetmodeService_Id);
 
+    auto&& update_state_callback = [&](const mavros_msgs::State::ConstPtr& msg) {
+      mavros_state_ = *msg;
+    };
     const uint32_t mavros_state_queue_size = 10u;
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(
       kMavrosStateTopic_Id,
       mavros_state_queue_size,
-      [&](const mavros_msgs::State::ConstPtr& msg) {
-        mavros_state = *msg;
-      }
+      update_state_callback
     );
   }
 
-  bool arm() { return set_armed_mode(true); }
-  bool disarm() { return set_armed_mode(false); }
-};
+  const auto& state() const { return mavros_state_; }
+  auto arm() { return set_armed(true); }
+  auto disarm() { return set_armed(false); }
 
-void arm_mavros(ros::ServiceClient& arming_client, mavros_msgs::CommandBool& arm_cmd) {
-  if (arming_client.call(arm_cmd) && arm_cmd.response.success)
-    ROS_INFO("Vehicle armed");
-}
+  template <typename String> auto
+  set_custom_mode(String&& custom_mode_id) {
+    operating_mode_cmd_.request.custom_mode = std::forward<String>(custom_mode_id);
+    return call_server(
+      [&]{ return set_mode_client.call(operating_mode_cmd_); },
+      [&]{ return operating_mode_cmd_.response.mode_sent; }
+    );
+  }
+};
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "quadrotor_controller");
   ros::NodeHandle nh;
 
-  mavros_msgs::State mavros_state;
-  auto set_state_callback = [&](const mavros_msgs::State::ConstPtr& msg) {
-    mavros_state = *msg;
-  };
+  auto mavros = std::make_shared<mavros_mode_adapter>(nh);
 
-  ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
-    ("mavros/state", 10, set_state_callback);
   ros::Publisher local_pos_pub = nh.advertise<rr::mavros_util::target_position>
     (rr::mavros_util::kMavrosSetpointLocalRawId, 10);
-  ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
-    ("mavros/cmd/arming");
-  ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
-    ("mavros/set_mode");
 
   //the setpoint publishing rate MUST be faster than 2Hz
   ros::Rate rate(20.0);
 
   // wait for FCU connection
-  while(ros::ok() && !mavros_state.connected) {
+  while(ros::ok() && !mavros->state().connected) {
     ros::spinOnce();
     rate.sleep();
   }
+
   rr::mavros_util::target_position target_position{};
   target_position.header.stamp = ros::Time::now();
   target_position.header.frame_id = "base_link";
@@ -131,14 +155,17 @@ int main(int argc, char **argv) {
 
   while(ros::ok()) {
     auto five_sec_since_last_request = (ros::Time::now() - last_request > ros::Duration(5.0));
-    if (mavros_state.mode != "OFFBOARD" && five_sec_since_last_request) {
-      if (set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
-        ROS_INFO("Offboard enabled");
+    if (mavros->state().mode != "OFFBOARD" && five_sec_since_last_request) {
+      auto success = mavros->set_custom_mode("OFFBOARD")
+        == mavros_mode_adapter::server_response::success;
+      ROS_INFO_COND(success, "Offboard enabled");
 
       last_request = ros::Time::now();
     } else {
-      if (!mavros_state.armed && five_sec_since_last_request) {
-        arm_mavros(arming_client, arm_cmd);
+      if (!mavros->state().armed && five_sec_since_last_request) {
+        auto success = mavros->arm()
+          == mavros_mode_adapter::server_response::success;
+        ROS_INFO_COND(success, "Vehicle armed");
         last_request = ros::Time::now();
       }
     }
