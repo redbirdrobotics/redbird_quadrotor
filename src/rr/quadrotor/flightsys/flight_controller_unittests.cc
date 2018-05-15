@@ -27,10 +27,6 @@ class MockQuadrotorAdapter : i_quadrotor_adapter {
     geometry_msgs::TwistStamped());
 };
 
-/**
- * @brief
- *    A vehicle waypoint. Units in meters.
- */
 struct vec3 {
   double x;
   double y;

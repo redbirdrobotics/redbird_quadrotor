@@ -122,7 +122,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME})
+add_library(${PROJECT_NAME}
+  src/rr/mavros_util/mavros_util.cc
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -195,7 +197,7 @@ target_link_libraries(${PROJECT_NAME}_node
 catkin_add_gtest(${PROJECT_NAME}-test
   test/run_all_tests.cc
   src/rr/mavros_util/mavros_util_unittests.cc
-  src/rr/quadrotor/flightsys/flight_controller_unittests.cc
+  # src/rr/quadrotor/flightsys/flight_controller_unittests.cc
 )
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
