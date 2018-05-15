@@ -5,8 +5,13 @@ namespace rr {
 namespace quadrotor {
 namespace flightsys {
 
+class quadrotor {
+ public:
+  virtual
+};
+
 i_flight_controller::~i_flight_controller() {};
-i_quadrotor_interfaces::~i_quadrotor_interfaces() {};
+//i_quadrotor_interfaces::~i_quadrotor_interfaces() {};
 
 void flight_controller::publish_setpoint() {
   while (!destructor_called_) {

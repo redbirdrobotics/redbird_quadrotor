@@ -121,9 +121,14 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+set(source
+  src/rr/iarc/m7a/m7a.cc
+  src/rr/mavros_util/mavros_util.cc
+)
+
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/rr/mavros_util/mavros_util.cc
+  ${source}
 )
 
 ## Add cmake target dependencies of the library
@@ -136,7 +141,7 @@ add_library(${PROJECT_NAME}
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
   src/main.cc
-  src/rr/mavros_util/mavros_util.cc
+  ${source}
 )
 
 ## Rename C++ executable without prefix
