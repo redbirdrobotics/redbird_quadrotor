@@ -5,6 +5,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
 
 #include <atomic>
 #include <functional>
@@ -25,7 +26,7 @@ namespace flightsys {
  * @note
  *    The functions provided here may be called from other threads.
  */
-class i_quadrotor_interfaces {
+class i_quadrotor_adapter {
  public:
   virtual void
   publish_setpoint_position(const mavros_util::target_position& target);
@@ -33,7 +34,10 @@ class i_quadrotor_interfaces {
   virtual geometry_msgs::PoseStamped
   get_current_position() const = 0;
 
-  virtual ~i_quadrotor_interfaces();
+  virtual geometry_msgs::TwistStamped
+  get_current_velocity() const = 0;
+
+  virtual ~i_quadrotor_adapter();
 };
 
 
@@ -88,65 +92,84 @@ class i_flight_controller {
    * @return
    *    The currently reported position of the quadrotor.
    */
-  virtual geometry_msgs::PoseStamped
+  virtual const geometry_msgs::PoseStamped&
   get_current_position() const = 0;
 
+
+  virtual const geometry_msgs::TwistStamped&
+  get_current_velocity() const = 0;
 
   virtual ~i_flight_controller();
 };
 
 
 
-//class flight_controller : public i_flight_controller {
-// private:
-//  using lock_guard = std::lock_guard<std::mutex>;
+class flight_controller : public i_flight_controller {
+ private:
+  using lock_guard = std::lock_guard<std::mutex>;
 
-//  std::unique_ptr<flight_controller_config> quadrotor_interfaces;
+  std::unique_ptr<i_quadrotor_adapter> quadrotor_interfaces_;
 
-//  mavros_util::target_position target_position_;
-//  mutable std::mutex target_position_mutex_;
-//  geometry_msgs::PoseStamped current_position_;
-//  mutable std::mutex current_position_mutex_;
+  mutable geometry_msgs::PoseStamped current_position_;
+  mutable geometry_msgs::TwistStamped current_velocity_;
 
-//  std::atomic_bool destructor_called_{ false };
+  mavros_util::target_position target_position_;
+  mutable std::mutex target_position_mutex_;
+  std::function<void()> delay_between_publish_;
 
-//  void update_positions();
+  void publish_setpoint();
 
-//  std::thread publish_until_destruct_thread;
+  std::thread publish_until_destruct_thread;
 
-// public:
-//  flight_controller(
-//      decltype(config_) config,
-//      const mavros_util::target_position& target_position
-//        = mavros_util::fully_ignored_mavros_setpoint_position())
-//    : config_(std::move(config))
-//    , target_position_(target_position)
-//  {
-//    publish_until_destruct_thread = std::thread(
-//      std::bind(&flight_controller::update_positions, this)
-//    );
-//  }
+  std::atomic_bool destructor_called_{ false };
 
-//  mavros_util::target_position
-//  target_position() const {
-//    lock_guard lock{ target_position_mutex_ };
-//    return target_position_;
-//  }
+  static constexpr auto default_publish_delay_ms = 50;
+ public:
+  flight_controller(
+      decltype(quadrotor_interfaces_) quadrotor_interfaces,
+      std::function<void()> delay_between_publish
+        = [] {
+          std::this_thread::sleep_for(
+            std::chrono::milliseconds{ default_publish_delay_ms }
+          );
+        },
+      const mavros_util::target_position& starting_target_position
+        = mavros_util::fully_ignored_mavros_setpoint_position())
+    : quadrotor_interfaces_(std::move(quadrotor_interfaces))
+    , target_position_(starting_target_position)
+    , delay_between_publish_(delay_between_publish)
+  {
+    publish_until_destruct_thread = std::thread(
+      std::bind(&flight_controller::publish_setpoint, this)
+    );
+  }
 
-//  void
-//  set_target_position(mavros_util::target_position new_target) {
-//    lock_guard lock{ target_position_mutex_ };
-//    target_position_ = new_target;
-//  }
+  mavros_util::target_position
+  target_position() const {
+    lock_guard lock{ target_position_mutex_ };
+    return target_position_;
+  }
 
-//  virtual geometry_msgs::PoseStamped
-//  get_current_position() const {
-//    lock_guard lock{ current_position_mutex_ };
-//    return current_position_;
-//  }
+  void
+  set_target_position(mavros_util::target_position new_target) {
+    lock_guard lock{ target_position_mutex_ };
+    target_position_ = new_target;
+  }
 
-//  virtual ~flight_controller();
-//};
+  virtual const geometry_msgs::PoseStamped&
+  get_current_position() const {
+    current_position_ = quadrotor_interfaces_->get_current_position();
+    return current_position_;
+  }
+
+  virtual const geometry_msgs::TwistStamped&
+  get_current_velocity() const {
+    current_velocity_ = quadrotor_interfaces_->get_current_velocity();
+    return current_velocity_;
+  }
+
+  virtual ~flight_controller();
+};
 
 
 

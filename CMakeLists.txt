@@ -122,9 +122,7 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
-  src/rr/quadrotor/flightsys/flights.cc
-)
+# add_library(${PROJECT_NAME})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -134,7 +132,10 @@ add_library(${PROJECT_NAME}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cc)
+add_executable(${PROJECT_NAME}_node
+  src/main.cc
+  src/rr/mavros_util/mavros_util.cc
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
