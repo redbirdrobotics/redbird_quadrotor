@@ -2,6 +2,7 @@
 
 #include <rr/mavros_util/mavros_util.hpp>
 
+#include <boost/functional.hpp>
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -9,7 +10,6 @@
 #include <mavros_msgs/State.h>
 
 #include <cstddef>
-#include <functional>
 #include <string>
 #include <type_traits>
 
@@ -39,7 +39,9 @@ class mavros_mode_adapter {
   static constexpr const char* const
     kMavrosStateTopic_Id = "mavros/state";
 
-  mavros_msgs::State mavros_state_;
+  ros::Subscriber state_sub_;
+  mavros_msgs::State mavros_state_{};
+
   mavros_msgs::CommandBool arm_cmd_;
   mavros_msgs::SetMode operating_mode_cmd_;
 
@@ -69,21 +71,21 @@ class mavros_mode_adapter {
 
  public:
   mavros_mode_adapter(ros::NodeHandle& nh) {
+    const uint32_t mavros_state_queue_size = 10u;
+    auto&& update_state_callback = [&](const mavros_msgs::State::ConstPtr& msg){
+      mavros_state_ = *msg;
+    };
+    state_sub_ = nh.subscribe<mavros_msgs::State>(
+      kMavrosStateTopic_Id,
+      mavros_state_queue_size,
+      update_state_callback
+    );
+
     arming_client
         = nh.serviceClient<mavros_msgs::CommandBool>(kMavrosArmingService_Id);
 
     set_mode_client
         = nh.serviceClient<mavros_msgs::SetMode>(kMavrosSetmodeService_Id);
-
-    auto&& update_state_callback = [&](const mavros_msgs::State::ConstPtr& msg) {
-      mavros_state_ = *msg;
-    };
-    const uint32_t mavros_state_queue_size = 10u;
-    ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(
-      kMavrosStateTopic_Id,
-      mavros_state_queue_size,
-      update_state_callback
-    );
   }
 
   const auto& state() const { return mavros_state_; }
@@ -104,8 +106,8 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "quadrotor_controller");
   ros::NodeHandle nh;
 
-  auto mavros = std::make_shared<mavros_mode_adapter>(nh);
 
+  auto mavros = std::make_shared<mavros_mode_adapter>(nh);
   ros::Publisher local_pos_pub = nh.advertise<rr::mavros_util::target_position>
     (rr::mavros_util::kMavrosSetpointLocalRawId, 10);
 
@@ -113,10 +115,12 @@ int main(int argc, char **argv) {
   ros::Rate rate(20.0);
 
   // wait for FCU connection
+  ROS_INFO("Awaiting FCU connection");
   while(ros::ok() && !mavros->state().connected) {
     ros::spinOnce();
     rate.sleep();
   }
+  ROS_INFO("FCU connected");
 
   rr::mavros_util::target_position target_position{};
   target_position.header.stamp = ros::Time::now();
@@ -138,9 +142,9 @@ int main(int argc, char **argv) {
   // Set the velocities we want (it is in m/s)
   // On the real drone send a minimum of 0.3 m/s in x/y (except when you send 0.0 m/s).
   // If the velocity is lower than 0.3 m/s then the UAV can move in any direction!
-  target_position.position.x = 10.;
-  target_position.position.y = 10.;
-  target_position.position.z = 10.;
+  target_position.position.x = 3.;
+  target_position.position.y = 3.;
+  target_position.position.z = 3.;
 
   // Set the yaw rate (it is in rad/s)
   target_position.yaw_rate = 2.f;
