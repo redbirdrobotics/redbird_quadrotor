@@ -393,7 +393,7 @@ std::unordered_map<mavros_state_mode_string, mavros_px4_mode>
 
 // TODO: this class should know less. In particular, don't pass NodeHandle in
 // c'tor.
-class mavros_mode_adapter {
+class mavros_adapter {
  public:
   enum class server_response {
     success,
@@ -447,15 +447,12 @@ class mavros_mode_adapter {
   }
 
  public:
-  mavros_mode_adapter(ros::NodeHandle& nh) {
+  mavros_adapter(ros::NodeHandle& nh) {
     const uint32_t mavros_state_queue_size = 10u;
-    auto&& update_state_callback = [&](const mavros_msgs::State::ConstPtr& msg){
-      mavros_state_ = *msg;
-    };
     state_sub_ = nh.subscribe<mavros_msgs::State>(
       kMavrosStateTopic_Id,
       mavros_state_queue_size,
-      update_state_callback
+      [&](const mavros_msgs::State::ConstPtr& msg){ mavros_state_ = *msg; }
     );
 
     arming_client
@@ -495,7 +492,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
 
 
-  auto mavros = std::make_shared<mavros_mode_adapter>(nh);
+  auto mavros = std::make_shared<mavros_adapter>(nh);
   ros::Publisher local_pos_pub = nh.advertise<rr::mavros_util::target_position>
     (rr::mavros_util::kMavrosSetpointLocalRawId, 10);
 
@@ -536,12 +533,12 @@ int main(int argc, char **argv) {
   while(ros::ok()) {
     if (mavros->mode() != mavros_px4_mode::OFFBOARD) {
       auto success = mavros->set_mode(mavros_px4_mode::OFFBOARD)
-        == mavros_mode_adapter::server_response::success;
+        == mavros_adapter::server_response::success;
       ROS_INFO_COND(success, "Offboard enabled");
     } else {
       if (!mavros->state().armed) {
         auto success = mavros->arm()
-          == mavros_mode_adapter::server_response::success;
+          == mavros_adapter::server_response::success;
         ROS_INFO_COND(success, "Vehicle armed");
       }
     }

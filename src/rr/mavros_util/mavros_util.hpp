@@ -8,6 +8,7 @@
 #include <ros/ros.h>
 
 #include <string>
+#include <unordered_map>
 
 namespace rr {
 namespace mavros_util {
@@ -22,17 +23,46 @@ namespace mavros_util {
 using target_position = mavros_msgs::PositionTarget;
 
 
-constexpr const char* const
-  kMavrosSetpointLocalRawId = "mavros/setpoint_raw/local";
+/**
+ * @brief
+ *    API identification strings for mavros
+ *
+ * @sa
+ *    http://wiki.ros.org/mavros
+ */
+struct api_ids {
+  /**
+   * @brief
+   *    ros::ServiceClient apis
+   */
+  struct services {
+    static constexpr const char* kArming  = "mavros/cmd/arming";
+    static constexpr const char* kSetmode = "mavros/set_mode";
+  };
 
-static constexpr const char* const
-  kMavrosArmingService_Id = "mavros/cmd/arming";
+  /**
+   * @brief
+   *    Topics published or subscribed-to by mavros
+   */
+  struct topics {
+    /**
+     * @brief
+     *    Topics published by mavros
+     */
+    struct published {
+      static constexpr const char* kState = "mavros/state";
+    };
 
-static constexpr const char* const
-  kMavrosSetmodeService_Id = "mavros/set_mode";
-
-static constexpr const char* const
-  kMavrosStateTopic_Id = "mavros/state";
+    /**
+     * @brief
+     *    Topics subscribed-to by mavros
+     */
+    struct subscribed {
+      static constexpr const char* kSetpointRawLocal
+        = "mavros/setpoint_raw/local";
+    };
+  };
+};
 
 
 /**
@@ -57,6 +87,7 @@ constexpr auto kIgnoreAll =
   | target_position::IGNORE_YAW
   | target_position::IGNORE_YAW_RATE;
 
+
 /**
  * @brief
  *    Create a bitmask which directs mavros to ignore all
@@ -80,6 +111,7 @@ ignore_all_but(decltype(kIgnoreAll) mask = 0) {
   return kIgnoreAll ^ mask;
 }
 
+
 /**
  * @brief
  *    Construct a target_position message with all ignore bitfields set. (i.e.,
@@ -97,27 +129,64 @@ fully_ignored_mavros_setpoint_position() {
 }
 
 
+namespace px4 {
 
-// TODO: this class should know less. In particular, don't pass NodeHandle in
-// c'tor.
-class mavros_mode_adapter {
+/**
+ * @brief
+ *    The custom modes available for PX4, sent via mavros.
+ *
+ * @sa
+ *    http://wiki.ros.org/mavros/CustomModes
+ */
+enum class operating_mode {
+  MANUAL,
+  ACRO,
+  ALTCTL,
+  POSCTL,
+  OFFBOARD,
+  STABILIZED,
+  RATTITUDE,
+  AUTO_MISSION,
+  AUTO_LOITER,
+  AUTO_RTL,
+  AUTO_LAND,
+  AUTO_RTGS,
+  AUTO_READY,
+  AUTO_TAKEOFF,
+
+  MODE_UNSUPPORTED // to handle unknown states
+};
+
+
+using mavros_state_mode_string = decltype(mavros_msgs::State{}.mode);
+
+extern const std::unordered_map<operating_mode, mavros_state_mode_string>
+  operating_mode_strings;
+
+extern const std::unordered_map<mavros_state_mode_string, operating_mode>
+  operating_modes_by_string;
+
+} // namespace px4
+
+
+
+class mavros_adapter {
+  // TODO: this class should know less. In particular, don't pass NodeHandle in
+  // c'tor.
+
  public:
   enum class server_response {
-   success,
-   denied,
-   fcu_not_connected,
-   cannot_reach_server,
+    success,
+    denied,
+    fcu_not_connected,
+    cannot_reach_server,
   };
 
- private:
-  template <typename CallServer, typename CheckSuccess>
-  server_response
-  call_server(CallServer&& call_server, CheckSuccess&& success);
+  mavros_adapter(ros::NodeHandle& nh);
 
- public:
-  mavros_mode_adapter(ros::NodeHandle& nh);
+  px4::operating_mode mode() const;
 
-  const auto&
+  mavros_msgs::State
   state() const { return mavros_state_; }
 
   server_response
@@ -127,17 +196,23 @@ class mavros_mode_adapter {
   disarm() { return set_armed(false); }
 
   server_response
-  set_custom_mode(std::string custom_mode_id);
+  set_mode(px4::operating_mode mode);
+
+  virtual ~mavros_adapter();
 
  private:
-  ros::ServiceClient arming_client;
-  mavros_msgs::CommandBool arm_cmd_;
-
-  ros::ServiceClient set_mode_client;
-  mavros_msgs::SetMode set_mode_cmd_;
-
   ros::Subscriber state_sub_;
   mavros_msgs::State mavros_state_{};
+
+  ros::ServiceClient arming_client;
+  mavros_msgs::CommandBool arm_cmd_{};
+
+  ros::ServiceClient set_mode_client;
+  mavros_msgs::SetMode operating_mode_cmd_{};
+
+  template <typename CallServer, typename CheckSuccess>
+  server_response
+  call_server(CallServer&& call_server, CheckSuccess&& success);
 
   server_response
   set_armed(bool arm);
