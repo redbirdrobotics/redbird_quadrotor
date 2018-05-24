@@ -92,3 +92,16 @@ TEST(RoombaInteractions, top_touch) {
 
 }
 
+using setpoint_function = std::function<const mavros_util::target_position&>;
+using delay_function = std::function<const std::chrono::milliseconds&>;
+
+template <typename SendSetpointsFunc, typename DelayFunc>
+void
+takeoff_land(SendSetpointsFunc set, DelayFunc delay_for) {}
+
+
+
+class quadrotor {
+
+};
+

@@ -1,8 +1,23 @@
 cmake_minimum_required(VERSION 2.8.3)
+
+set(CMAKE_BUILD_TYPE Debug)
+add_compile_options(
+  -std=c++17
+  -g
+  -Wall
+  -Wextra
+  -Wpedantic
+  -Wconversion
+  -Wswitch-default
+  -Wswitch-enum
+  -Wunreachable-code
+  -Wwrite-strings
+  -Wcast-align
+  -Wshadow
+)
+set(ROS_BUILD_TYPE Debug)
 project(redbird_quadrotor_controller)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -118,17 +133,18 @@ catkin_package(
 include_directories(
   include
   src
+  src/3rdparty/units/include
   ${catkin_INCLUDE_DIRS}
 )
 
-set(source
+set(REDBIRD_QUADROTOR_CONTROLLER_SOURCES
   src/rr/iarc/m7a/m7a.cc
   src/rr/mavros_util/mavros_util.cc
 )
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  ${source}
+  ${REDBIRD_QUADROTOR_CONTROLLER_SOURCES}
 )
 
 ## Add cmake target dependencies of the library
@@ -141,7 +157,7 @@ add_library(${PROJECT_NAME}
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
   src/main.cc
-  ${source}
+  ${REDBIRD_QUADROTOR_CONTROLLER_SOURCES}
 )
 
 ## Rename C++ executable without prefix
@@ -202,6 +218,7 @@ target_link_libraries(${PROJECT_NAME}_node
 catkin_add_gtest(${PROJECT_NAME}-test
   test/run_all_tests.cc
   src/rr/mavros_util/mavros_util_unittests.cc
+  src/rr/iarc/m7a/m7a_unittests.cc
   # src/rr/quadrotor/flightsys/flight_controller_unittests.cc
 )
 if(TARGET ${PROJECT_NAME}-test)
