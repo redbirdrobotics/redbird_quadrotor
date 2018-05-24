@@ -7,8 +7,6 @@
 #include <mavros_msgs/State.h>
 #include <ros/ros.h>
 
-#include <string>
-#include <unordered_map>
 
 namespace rr {
 namespace mavros_util {
@@ -158,13 +156,13 @@ enum class operating_mode {
 };
 
 
-using mavros_state_mode_string = decltype(mavros_msgs::State{}.mode);
+using mavros_state_mode_string_t = decltype(mavros_msgs::State{}.mode);
 
-extern const std::unordered_map<operating_mode, mavros_state_mode_string>
-  operating_mode_strings;
+operating_mode
+string_to_operating_mode(const mavros_state_mode_string_t& mode_string);
 
-extern const std::unordered_map<mavros_state_mode_string, operating_mode>
-  operating_modes_by_string;
+mavros_state_mode_string_t
+to_string(operating_mode mode);
 
 } // namespace px4
 

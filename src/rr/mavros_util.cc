@@ -1,11 +1,19 @@
-#include <rr/mavros_util/mavros_util.hpp>
+#include "mavros_util.hpp"
 
+#include <unordered_map>
+
+#include <string>
 namespace rr {
 namespace mavros_util {
 
 namespace px4 {
 
-const std::unordered_map<operating_mode, mavros_state_mode_string>
+struct enum_hash {
+    template <typename T>
+    std::size_t operator()(T t) const { return static_cast<std::size_t>(t); }
+};
+
+const std::unordered_map<operating_mode, std::string, enum_hash>
     operating_mode_strings {
   { operating_mode::MANUAL, "MANUAL" },
   { operating_mode::ACRO, "ACRO" },
@@ -23,16 +31,17 @@ const std::unordered_map<operating_mode, mavros_state_mode_string>
   { operating_mode::AUTO_TAKEOFF, "AUTO.TAKEOFF" }
 };
 
-
 namespace detail {
 
-std::unordered_map<mavros_state_mode_string, operating_mode>
+std::unordered_map<std::string, operating_mode>
     init_operating_mode_map() {
-  std::unordered_map<mavros_state_mode_string, operating_mode> map{};
-  map.reserve(operating_mode_strings.size());
+  std::unordered_map<std::string, operating_mode> map{};
 
-  for (const auto& mode_and_string : operating_mode_strings)
-    map.emplace(mode_and_string.second, mode_and_string.first);
+  auto itr = operating_mode_strings.cbegin(),
+       end = operating_mode_strings.cend();
+  for (; itr != end; ++itr) {
+    map.emplace(itr->second, itr->first);
+  }
 
   return map;
 }
@@ -40,11 +49,26 @@ std::unordered_map<mavros_state_mode_string, operating_mode>
 } // namespace detail
 
 
-const std::unordered_map<mavros_state_mode_string, operating_mode>
+const std::unordered_map<std::string, operating_mode>
   operating_modes_by_string = detail::init_operating_mode_map();
 
 
+operating_mode
+string_to_operating_mode(const std::string& mode_string) {
+  auto itr = operating_modes_by_string.find(mode_string),
+       end = operating_modes_by_string.end();
+  if (itr == end) return operating_mode::MODE_UNSUPPORTED;
+  return itr->second;
+}
+
+std::string
+to_string(operating_mode mode) {
+  return operating_mode_strings.at(mode);
+}
+
+
 } // namespace px4
+
 
 
 using server_response = mavros_adapter::server_response;
@@ -53,17 +77,18 @@ mavros_adapter::~mavros_adapter() {}
 
 template <typename CallServer, typename CheckSuccess>
 server_response
-mavros_adapter::call_server(CallServer&& call_server, CheckSuccess&& success) {
+mavros_adapter::call_server(CallServer&& call_server_func,
+                            CheckSuccess&& check_success) {
   using r = server_response;
 
   if (!mavros_state_.connected)
     return r::fcu_not_connected;
 
-  auto able_to_reach_server = std::forward<CallServer>(call_server)();
+  auto able_to_reach_server = std::forward<CallServer>(call_server_func)();
   if (!able_to_reach_server)
     return r::cannot_reach_server;
 
-  return std::forward<CheckSuccess>(success)() ? r::success : r::denied;
+  return std::forward<CheckSuccess>(check_success)() ? r::success : r::denied;
 }
 
 server_response
@@ -94,18 +119,13 @@ mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
 
 px4::operating_mode
 mavros_adapter::mode() const {
-  auto itr = px4::operating_modes_by_string.find(mavros_state_.mode);
-  auto end = px4::operating_modes_by_string.cend();
-  if (itr == end)
-    return px4::operating_mode::MODE_UNSUPPORTED;
-
-  auto mode = itr->second;
+  auto mode = px4::string_to_operating_mode(mavros_state_.mode.c_str());
   return mode;
 }
 
 server_response
 mavros_adapter::set_mode(px4::operating_mode mode) {
-  operating_mode_cmd_.request.custom_mode = px4::operating_mode_strings.at(mode);
+  operating_mode_cmd_.request.custom_mode = px4::to_string(mode);
   return call_server(
     [&]{ return set_mode_client.call(operating_mode_cmd_); },
     [&]{ return operating_mode_cmd_.response.mode_sent; }

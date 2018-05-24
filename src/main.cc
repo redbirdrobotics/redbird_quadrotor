@@ -186,7 +186,7 @@
 // * @sa
 // *    http://wiki.ros.org/mavros/CustomModes
 // */
-//enum class mavros_px4_mode : const char* {
+//enum class mavros_util::px4::operating_mode : const char* {
 //  MANUAL,
 //  ACRO,
 //  ALTCTL,
@@ -203,9 +203,9 @@
 //  AUTO_TAKEOFF
 //};
 
-//mavros_px4_mode
-//mavros_px4_mode_from_string(const std::string& mode) {
-//  if (mode == "OFFBOARD") return mavros_px4_mode::OFFBOARD;
+//mavros_util::px4::operating_mode
+//mavros_util::px4::operating_mode_from_string(const std::string& mode) {
+//  if (mode == "OFFBOARD") return mavros_util::px4::operating_mode::OFFBOARD;
 
 //  // we don't need any others at this time; throw:
 //  throw std::runtime_error("other modes not implemented");
@@ -230,9 +230,9 @@
 
 //  }
 
-//  mavros_px4_mode mode() const {
+//  mavros_util::px4::operating_mode mode() const {
 //    lock_guard lock{ state_mutex };
-//    auto mode = mavros_px4_mode_from_string(state.mode);
+//    auto mode = mavros_util::px4::operating_mode_from_string(state.mode);
 //    return mode;
 //  }
 
@@ -312,11 +312,7 @@
 
 
 
-// This code below taken directly from PX4 example documentation
 
-#include <rr/mavros_util/mavros_util.hpp>
-
-#include <boost/functional.hpp>
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -329,184 +325,10 @@
 #include <string>
 #include <type_traits>
 
-/**
- * @sa
- *    http://wiki.ros.org/mavros/CustomModes
- */
-enum class mavros_px4_mode {
-  MANUAL,
-  ACRO,
-  ALTCTL,
-  POSCTL,
-  OFFBOARD,
-  STABILIZED,
-  RATTITUDE,
-  AUTO_MISSION,
-  AUTO_LOITER,
-  AUTO_RTL,
-  AUTO_LAND,
-  AUTO_RTGS,
-  AUTO_READY,
-  AUTO_TAKEOFF,
+#include <rr/mavros_util.hpp>
 
-  UNSUPPORTED
-};
-using mavros_state_mode_string = decltype(mavros_msgs::State{}.mode);
-const std::map<mavros_px4_mode, mavros_state_mode_string>
-    mavros_px4_mode_strings {
-  { mavros_px4_mode::MANUAL, "MANUAL" },
-  { mavros_px4_mode::ACRO, "ACRO" },
-  { mavros_px4_mode::ALTCTL, "ALTCTL" },
-  { mavros_px4_mode::POSCTL, "POSCTL" },
-  { mavros_px4_mode::OFFBOARD, "OFFBOARD" },
-  { mavros_px4_mode::STABILIZED, "STABILIZED" },
-  { mavros_px4_mode::RATTITUDE, "RATTITUDE" },
-  { mavros_px4_mode::AUTO_MISSION, "AUTO.MISSION" },
-  { mavros_px4_mode::AUTO_LOITER, "AUTO.LOITER" },
-  { mavros_px4_mode::AUTO_RTL, "AUTO.RTL" },
-  { mavros_px4_mode::AUTO_LAND, "AUTO.LAND" },
-  { mavros_px4_mode::AUTO_RTGS, "AUTO.RTGS" },
-  { mavros_px4_mode::AUTO_READY, "AUTO.READY" },
-  { mavros_px4_mode::AUTO_TAKEOFF, "AUTO.TAKEOFF" }
-};
-
-
-namespace detail {
-
-std::unordered_map<mavros_state_mode_string, mavros_px4_mode>
-    init_mavros_px4_mode_map() {
-  std::unordered_map<mavros_state_mode_string, mavros_px4_mode> map{};
-  map.reserve(mavros_px4_mode_strings.size());
-
-  for (const auto& mode_and_string : mavros_px4_mode_strings)
-    map.emplace(mode_and_string.second, mode_and_string.first);
-
-  return map;
-}
-
-} // namespace detail
-
-
-std::unordered_map<mavros_state_mode_string, mavros_px4_mode>
-  mavros_px4_modes_by_string = detail::init_mavros_px4_mode_map();
-
-
-// TODO: this class should know less. In particular, don't pass NodeHandle in
-// c'tor.
-class mavros_adapter {
- public:
-  enum class server_response {
-    success,
-    denied,
-    fcu_not_connected,
-    cannot_reach_server,
-  };
-
- private:
-  ros::ServiceClient arming_client;
-
-  ros::ServiceClient set_mode_client;
-
-  static constexpr const char* const
-    kMavrosArmingService_Id = "mavros/cmd/arming";
-
-  static constexpr const char* const
-    kMavrosSetmodeService_Id = "mavros/set_mode";
-
-  static constexpr const char* const
-    kMavrosStateTopic_Id = "mavros/state";
-
-  ros::Subscriber state_sub_;
-  mavros_msgs::State mavros_state_{};
-
-  mavros_msgs::CommandBool arm_cmd_;
-  mavros_msgs::SetMode operating_mode_cmd_;
-
-  template <typename CallServer, typename CheckSuccess>
-  server_response
-  call_server(CallServer&& call_server, CheckSuccess&& success) {
-    using r = server_response;
-
-    if (!mavros_state_.connected)
-      return r::fcu_not_connected;
-
-    auto able_to_reach_server = std::forward<CallServer>(call_server)();
-    if (!able_to_reach_server)
-      return r::cannot_reach_server;
-
-    return std::forward<CheckSuccess>(success)() ? r::success : r::denied;
-  }
-
-  auto
-  set_armed(bool arm) {
-    arm_cmd_.request.value = arm;
-    return call_server(
-      [&]{ return arming_client.call(arm_cmd_); },
-      [&]{ return arm_cmd_.response.success; }
-    );
-  }
-
- public:
-  mavros_adapter(ros::NodeHandle& nh) {
-    const uint32_t mavros_state_queue_size = 10u;
-    state_sub_ = nh.subscribe<mavros_msgs::State>(
-      kMavrosStateTopic_Id,
-      mavros_state_queue_size,
-      [&](const mavros_msgs::State::ConstPtr& msg){ mavros_state_ = *msg; }
-    );
-
-    arming_client
-        = nh.serviceClient<mavros_msgs::CommandBool>(kMavrosArmingService_Id);
-
-    set_mode_client
-        = nh.serviceClient<mavros_msgs::SetMode>(kMavrosSetmodeService_Id);
-  }
-
-  mavros_px4_mode mode() const {
-    auto itr = mavros_px4_modes_by_string.find(mavros_state_.mode);
-    auto end = mavros_px4_modes_by_string.cend();
-    if (itr == end)
-      return mavros_px4_mode::UNSUPPORTED;
-
-    auto mode = itr->second;
-    return mode;
-  }
-  mavros_msgs::State state() const { return mavros_state_; }
-  auto arm() { return set_armed(true); }
-  auto disarm() { return set_armed(false); }
-
-  auto
-  set_mode(mavros_px4_mode mode) {
-    operating_mode_cmd_.request.custom_mode = mavros_px4_mode_strings.at(mode);
-    return call_server(
-      [&]{ return set_mode_client.call(operating_mode_cmd_); },
-      [&]{ return operating_mode_cmd_.response.mode_sent; }
-    );
-  }
-};
-
-
-
-int main(int argc, char **argv) {
-  ros::init(argc, argv, "quadrotor_controller");
-  ros::NodeHandle nh;
-
-
-  auto mavros = std::make_shared<mavros_adapter>(nh);
-  ros::Publisher local_pos_pub = nh.advertise<rr::mavros_util::target_position>
-    (rr::mavros_util::kMavrosSetpointLocalRawId, 10);
-
-  //the setpoint publishing rate MUST be faster than 2Hz
-  ros::Rate rate(20.0);
-
-  // wait for FCU connection
-  ROS_INFO("Awaiting FCU connection");
-  while(ros::ok() && !mavros->state().connected) {
-    ros::spinOnce();
-    rate.sleep();
-  }
-  ROS_INFO("FCU connected");
-
+auto
+arbitrary_setpoints() {
   rr::mavros_util::target_position target_position{};
   target_position.header.stamp = ros::Time::now();
   target_position.header.frame_id = "base_link";
@@ -529,10 +351,37 @@ int main(int argc, char **argv) {
   // Set the yaw rate (it is in rad/s)
   target_position.yaw_rate = 2.f;
 
+  return target_position;
+}
+
+int main(int argc, char **argv) {
+  using namespace ::rr;
+  using namespace ::rr::mavros_util;
+
+  ros::init(argc, argv, "quadrotor_controller");
+  ros::NodeHandle nh;
+
+  auto mavros = std::make_shared<mavros_adapter>(nh);
+  ros::Publisher local_pos_pub = nh.advertise<target_position>(
+    mavros_util::api_ids::topics::subscribed::kSetpointRawLocal, 10);
+
+  //the setpoint publishing rate MUST be faster than 2Hz
+  ros::Rate rate(20.0);
+
+  // await the FCU connection
+  ROS_INFO("Awaiting FCU connection");
+  while(ros::ok() && !mavros->state().connected) {
+    ros::spinOnce();
+    rate.sleep();
+  }
+  ROS_INFO("FCU connected");
+
+
+  auto setpoints = arbitrary_setpoints();
 
   while(ros::ok()) {
-    if (mavros->mode() != mavros_px4_mode::OFFBOARD) {
-      auto success = mavros->set_mode(mavros_px4_mode::OFFBOARD)
+    if (mavros->mode() != px4::operating_mode::OFFBOARD) {
+      auto success = mavros->set_mode(px4::operating_mode::OFFBOARD)
         == mavros_adapter::server_response::success;
       ROS_INFO_COND(success, "Offboard enabled");
     } else {
@@ -543,8 +392,8 @@ int main(int argc, char **argv) {
       }
     }
 
-    target_position.header.stamp = ros::Time::now();
-    local_pos_pub.publish(target_position);
+    setpoints.header.stamp = ros::Time::now();
+    local_pos_pub.publish(setpoints);
     ros::spinOnce();
     rate.sleep();
   }

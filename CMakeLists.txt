@@ -139,7 +139,7 @@ include_directories(
 
 set(REDBIRD_QUADROTOR_CONTROLLER_SOURCES
   src/rr/iarc/m7a/m7a.cc
-  src/rr/mavros_util/mavros_util.cc
+  src/rr/mavros_util.cc
 )
 
 ## Declare a C++ library
@@ -217,7 +217,7 @@ target_link_libraries(${PROJECT_NAME}_node
 ## Add gtest based cpp test target and link libraries
 catkin_add_gtest(${PROJECT_NAME}-test
   test/run_all_tests.cc
-  src/rr/mavros_util/mavros_util_unittests.cc
+  src/rr/mavros_util_unittests.cc
   src/rr/iarc/m7a/m7a_unittests.cc
   # src/rr/quadrotor/flightsys/flight_controller_unittests.cc
 )
