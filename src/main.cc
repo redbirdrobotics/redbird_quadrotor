@@ -520,9 +520,7 @@ int main(int argc, char **argv) {
     | mavros_msgs::PositionTarget::IGNORE_PY
     | mavros_msgs::PositionTarget::IGNORE_PZ
   );
-  // This makes it so our velocities are sent in the UAV frame.
-  // If you use FRAME_LOCAL_NED then it will be in map frame
-  target_position.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_OFFSET_NED;
+  target_position.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
 
   // Set the velocities we want (it is in m/s)
   // On the real drone send a minimum of 0.3 m/s in x/y (except when you send 0.0 m/s).
@@ -548,6 +546,7 @@ int main(int argc, char **argv) {
       }
     }
 
+    target_position.header.stamp = ros::Time::now();
     local_pos_pub.publish(target_position);
     ros::spinOnce();
     rate.sleep();
