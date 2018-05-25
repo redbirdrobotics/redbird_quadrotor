@@ -70,18 +70,15 @@ to_string(operating_mode mode) {
 } // namespace px4
 
 
-
 using server_response = mavros_adapter::server_response;
-
-mavros_adapter::~mavros_adapter() {}
 
 template <typename CallServer, typename CheckSuccess>
 server_response
 mavros_adapter::call_server(CallServer&& call_server_func,
-                            CheckSuccess&& check_success) {
+                            CheckSuccess&& check_success) const {
   using r = server_response;
 
-  if (!mavros_state_.connected)
+  if (!mavros_state().connected)
     return r::fcu_not_connected;
 
   auto able_to_reach_server = std::forward<CallServer>(call_server_func)();
@@ -92,12 +89,26 @@ mavros_adapter::call_server(CallServer&& call_server_func,
 }
 
 server_response
-mavros_adapter::set_armed(bool arm) {
-  arm_cmd_.request.value = arm;
+mavros_adapter::enable_current_arming_command() {
   return call_server(
-    [&]{ return arming_client.call(arm_cmd_); },
+    [&]{ return arming_client_.call(arm_cmd_); },
     [&]{ return arm_cmd_.response.success; }
   );
+}
+
+server_response
+mavros_adapter::enable_current_mode() {
+  return call_server(
+    [&]{ return set_mode_client_.call(operating_mode_cmd_); },
+    [&]{ return operating_mode_cmd_.response.mode_sent; }
+  );
+}
+
+void
+mavros_adapter::set_armed(bool arm) {
+  auto cmd = arm_cmd();
+  cmd.request.value = arm;
+  set_arm_cmd(cmd);
 }
 
 mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
@@ -105,31 +116,65 @@ mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
   state_sub_ = nh.subscribe<mavros_msgs::State>(
     api_ids::topics::published::kState,
     mavros_state_queue_size,
-    [&](const mavros_msgs::State::ConstPtr& msg){ mavros_state_ = *msg; }
+    [&](const mavros_msgs::State::ConstPtr& msg){
+      mavros_state_ = *msg;
+    }
   );
 
-  arming_client = nh.serviceClient<mavros_msgs::CommandBool>(
+  arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(
     api_ids::services::kArming
   );
 
-  set_mode_client = nh.serviceClient<mavros_msgs::SetMode>(
+  set_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(
     api_ids::services::kSetmode
   );
+
+  const uint32_t mavros_setpoint_queue_size = 10;
+  setpoint_publisher_ = nh.advertise<target_position>(
+    mavros_util::api_ids::topics::subscribed::kSetpointRawLocal,
+    mavros_setpoint_queue_size
+  );
+
+  persistent_tasks.emplace_back(
+    [&] {
+      while (!destructor_called_) {
+        bool server_called = publish_target_mode();
+        if (server_called) change_mode_delay_.sleep();
+        else check_mode_delay_.sleep();
+      }
+    },
+    [&] {
+      while (!destructor_called_) {
+        bool server_called = publish_target_arm_cmd();
+        if (server_called) arm_delay_.sleep();
+        else check_armed_delay_.sleep();
+      }
+    },
+    [&] {
+      while (!destructor_called_) {
+        publish_setpoints();
+        send_setpoints_delay_.sleep();
+      }
+    }
+  );
+}
+
+mavros_adapter::~mavros_adapter() {
+  destructor_called_ = true;
+  for (auto& t : persistent_tasks)
+    t.join();
 }
 
 px4::operating_mode
 mavros_adapter::mode() const {
-  auto mode = px4::string_to_operating_mode(mavros_state_.mode.c_str());
+  auto mode = px4::string_to_operating_mode(mavros_state_.mode);
   return mode;
 }
 
-server_response
+void
 mavros_adapter::set_mode(px4::operating_mode mode) {
+  current_target_mode_ = mode;
   operating_mode_cmd_.request.custom_mode = px4::to_string(mode);
-  return call_server(
-    [&]{ return set_mode_client.call(operating_mode_cmd_); },
-    [&]{ return operating_mode_cmd_.response.mode_sent; }
-  );
 }
 
 

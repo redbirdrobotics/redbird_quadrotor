@@ -7,6 +7,10 @@
 #include <mavros_msgs/State.h>
 #include <ros/ros.h>
 
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <thread>
 
 namespace rr {
 namespace mavros_util {
@@ -166,7 +170,79 @@ to_string(operating_mode mode);
 
 } // namespace px4
 
+class i_mavros_adapter {
+ public:
+  virtual ~i_mavros_adapter();
+};
 
+class synchronized_delay {
+ private:
+  using lock = std::lock_guard<std::mutex>;
+
+  std::chrono::microseconds duration_;
+  mutable std::mutex duration_mutex_;
+
+  void sleep_for(std::chrono::microseconds&& us) const {
+    auto start = std::chrono::high_resolution_clock::now();
+    auto end = start + us;
+    do {
+      std::this_thread::yield();
+    } while (std::chrono::high_resolution_clock::now() < end);
+  }
+
+ public:
+  explicit synchronized_delay(std::chrono::microseconds duration
+                        = std::chrono::microseconds{})
+    : duration_(duration)
+  {}
+
+  template <typename Duration>
+  void set_duration(Duration&& d) {
+    lock l(duration_mutex_);
+    duration_ = std::forward<Duration>(d);
+  }
+
+  std::chrono::microseconds duration() const {
+    lock l(duration_mutex_);
+    return duration_;
+  }
+
+  void sleep() const {
+    sleep_for(duration());
+  }
+};
+
+template <typename T>
+class sychronized final {
+ private:
+  using Type = std::remove_reference_t<T>;
+  using lock = std::lock_guard<std::mutex>;
+  Type value_;
+  mutable std::mutex mutex_{};
+
+ public:
+  template <typename U>
+  sychronized(U&& value)
+    : value_(std::forward<U>(value))
+  {}
+
+  template <typename U> auto
+  set(U&& new_value) {
+    lock l(mutex_);
+    value_ = std::forward<U>(new_value);
+  }
+
+  Type get() const {
+    lock l(mutex_);
+    return value_;
+  }
+
+  template <typename Mutator>
+  void alter(Mutator&& func) {
+    lock l(mutex_);
+    std::forward<Mutator>(func)(value_);
+  }
+};
 
 class mavros_adapter {
   // TODO: this class should know less. In particular, don't pass NodeHandle in
@@ -183,36 +259,117 @@ class mavros_adapter {
   mavros_adapter(ros::NodeHandle& nh);
 
   px4::operating_mode mode() const;
+  void set_mode(px4::operating_mode mode);
 
-  mavros_msgs::State
-  state() const { return mavros_state_; }
+  void arm()    { return set_armed(true); }
+  void disarm() { return set_armed(false); }
 
-  server_response
-  arm() { return set_armed(true); }
-
-  server_response
-  disarm() { return set_armed(false); }
-
-  server_response
-  set_mode(px4::operating_mode mode);
+  /**
+   * @brief
+   *    Indicates that mavros is:
+   *      1. connected to FCU
+   *      2. armed
+   *      3. in the currently-set operating mode
+   */
+  bool ready();
 
   virtual ~mavros_adapter();
 
  private:
+  using lock = std::lock_guard<std::mutex>;
+  std::vector<std::thread> persistent_tasks{};
+  std::atomic_bool destructor_called_{ false };
+
+  using ms = std::chrono::milliseconds;
+  using s = std::chrono::seconds;
+  synchronized_delay check_armed_delay_     { ms{20} };
+  synchronized_delay arm_delay_             { s{3} };
+  synchronized_delay check_mode_delay_      { ms{20} };
+  synchronized_delay change_mode_delay_     { s{3} };
+  synchronized_delay send_setpoints_delay_  { ms{20} };
+
+  server_response
+  enable_current_arming_command();
+
+  server_response
+  enable_current_mode();
+
+  mavros_msgs::State mavros_state() const {
+    lock l(mavros_state_mutex_);
+    return mavros_state_;
+  }
+
+  bool publish_target_mode() {
+    bool server_called = false;
+    bool target_mode_achieved = (mode() == current_target_mode_);
+    if (!target_mode_achieved) {
+      auto success = enable_current_mode()
+        == mavros_adapter::server_response::success;
+      ROS_INFO_COND(success, "Offboard enabled");
+      server_called = true;
+    }
+
+    return server_called;
+  }
+
+  bool publish_target_arm_cmd() {
+    bool server_called = false;
+    if (!mavros_state().armed) {
+      auto success = enable_current_arming_command()
+        == mavros_adapter::server_response::success;
+      ROS_INFO_COND(success, "Vehicle armed");
+      server_called = true;
+    }
+
+    return server_called;
+  }
+
+  void publish_setpoints() {
+    setpoint_publisher_.publish(setpoints_);
+  }
+
   ros::Subscriber state_sub_;
   mavros_msgs::State mavros_state_{};
+  mutable std::mutex mavros_state_mutex_{};
 
-  ros::ServiceClient arming_client;
+  ros::ServiceClient arming_client_;
+
   mavros_msgs::CommandBool arm_cmd_{};
+  mutable std::mutex arm_cmd_mutex_{};
+  mavros_msgs::CommandBool arm_cmd() const {
+    lock l(arm_cmd_mutex_);
+    return arm_cmd_;
+  }
+  template <typename T>
+  mavros_msgs::CommandBool set_arm_cmd(T&& cmd) {
+    lock l(arm_cmd_mutex_);
+    arm_cmd_ = std::forward<T>(cmd);
+  }
 
-  ros::ServiceClient set_mode_client;
+  std::atomic<px4::operating_mode> current_target_mode_{}; // TODO static assert lock free?
+
+  ros::ServiceClient set_mode_client_;
   mavros_msgs::SetMode operating_mode_cmd_{};
+
+  ros::Publisher setpoint_publisher_;
+  synchronized<target_position> setpoints_
+    = mavros_util::fully_ignored_mavros_setpoint_position();
+  mutable std::mutex setpoints_mutex_;
+  target_position setpoints() const {
+    lock l(setpoints_mutex_);
+    return setpoints_;
+  }
+  template <typename T>
+  target_position set_setpoints(T&& target) {
+    lock l(setpoints_mutex_);
+    setpoints_ = std::forward<T>(target);
+  }
 
   template <typename CallServer, typename CheckSuccess>
   server_response
-  call_server(CallServer&& call_server, CheckSuccess&& success);
+  call_server(CallServer&& call_server_func, CheckSuccess&& check_success) const;
 
-  server_response
+  void
   set_armed(bool arm);
 };
 
