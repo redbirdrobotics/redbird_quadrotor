@@ -92,7 +92,7 @@ circle(T&& send_setpoints) {
   const auto altitude = 2.75_m;
   const auto radius = 10._m;
   const auto revolution_period = 15._s;
-  const radian_t _2pi = 360_deg;
+  const radian_t _2pi = 360._deg;
 
   auto theta_at_t = [&](const time::millisecond_t& t) {
     time::millisecond_t remainder = um::fmod(t, revolution_period);
@@ -116,7 +116,7 @@ circle(T&& send_setpoints) {
     t = clock::now() - start;
     radian_t theta = theta_at_t(t);
     std::tie(setpoints.x, setpoints.y) = xy_at_theta(theta);
-    setpoints.yaw = theta + 180_deg;
+    setpoints.yaw = theta + 180._deg;
     send_setpoints(setpoints);
   }
 }
