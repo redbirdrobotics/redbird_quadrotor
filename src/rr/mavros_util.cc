@@ -149,21 +149,21 @@ mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
   auto set_mode = [&] {
     while (!destructor_called_) {
       bool server_called = publish_target_mode();
-      if (server_called) change_mode_delay_.sleep();
-      else check_mode_delay_.sleep();
+      if (server_called) change_mode_delay_.get().sleep();
+      else check_mode_delay_.get().sleep();
     }
   };
   auto set_armed_cmd = [&] {
     while (!destructor_called_) {
       bool server_called = publish_target_arm_cmd();
-      if (server_called) arm_delay_.sleep();
-      else check_armed_delay_.sleep();
+      if (server_called) arm_delay_.get().sleep();
+      else check_armed_delay_.get().sleep();
     }
   };
   auto send_setpoints = [&] {
     while (!destructor_called_) {
       publish_setpoints();
-      send_setpoints_delay_.sleep();
+      send_setpoints_delay_.get().sleep();
     }
   };
   persistent_tasks.reserve(3);

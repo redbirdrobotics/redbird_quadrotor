@@ -2,6 +2,7 @@
 #define RR_MAVROS_UTIL_HPP_
 
 #include <rr/synchronized.hpp>
+#include <rr/conditional_sleep.hpp>
 
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -78,7 +79,7 @@ struct api_ids {
  * @sa
  *    mavros_msgs::PositionTarget::IGNORE_PX
  */
-constexpr auto kIgnoreAll =
+constexpr target_position::_type_mask_type kIgnoreAll =
     target_position::IGNORE_PX
   | target_position::IGNORE_PY
   | target_position::IGNORE_PZ
@@ -88,7 +89,6 @@ constexpr auto kIgnoreAll =
   | target_position::IGNORE_AFX
   | target_position::IGNORE_AFY
   | target_position::IGNORE_AFZ
-  | target_position::FORCE
   | target_position::IGNORE_YAW
   | target_position::IGNORE_YAW_RATE;
 
@@ -110,7 +110,7 @@ constexpr auto kIgnoreAll =
  *    target_position.type_mask
  *      = ignore_all_but(mavros_msgs::PositionTarget::IGNORE_PX);
  */
-constexpr auto
+constexpr target_position::_type_mask_type
 ignore_all_but(decltype(kIgnoreAll) mask = 0) {
   // clear the bits which are set in mask. (i.e. toggle the mask's set bits)
   return kIgnoreAll ^ mask;
@@ -175,46 +175,6 @@ to_string(operating_mode mode);
 
 
 
-class synchronized_delay {
- private:
-  using lock = std::lock_guard<std::mutex>;
-
-  std::chrono::microseconds duration_;
-  mutable std::mutex duration_mutex_;
-  std::function<bool()> should_stop_;
-
-  void sleep_for(std::chrono::microseconds&& us) const {
-    auto start = std::chrono::high_resolution_clock::now();
-    auto end = start + us;
-    do {
-      std::this_thread::yield();
-    } while (!should_stop_() && std::chrono::high_resolution_clock::now() < end);
-  }
-
- public:
-  template <typename ShouldStopFunc>
-  explicit synchronized_delay(
-      std::chrono::microseconds duration,
-      ShouldStopFunc&& stop_sleep_when_true)
-    : duration_(duration)
-    , should_stop_(std::forward<ShouldStopFunc>(stop_sleep_when_true))
-  {}
-
-  template <typename Duration>
-  void set_duration(Duration&& d) {
-    lock l(duration_mutex_);
-    duration_ = std::forward<Duration>(d);
-  }
-
-  std::chrono::microseconds duration() const {
-    lock l(duration_mutex_);
-    return duration_;
-  }
-
-  void sleep() const { // TODO: or_until function
-    sleep_for(duration());
-  }
-};
 
 
 class mavros_adapter {
@@ -322,14 +282,16 @@ class mavros_adapter {
     { mavros_util::fully_ignored_mavros_setpoint_position() };
 
   std::atomic_bool destructor_called_{ false };
+  bool destructing() { return destructor_called_.load(); }
 
   using ms = std::chrono::milliseconds;
   using s = std::chrono::seconds;
-  synchronized_delay check_armed_delay_     { ms{20}, [&]{ return destructor_called_.load(); } };
-  synchronized_delay arm_delay_             { s{3},   [&]{ return destructor_called_.load(); } };
-  synchronized_delay check_mode_delay_      { ms{20}, [&]{ return destructor_called_.load(); } };
-  synchronized_delay change_mode_delay_     { s{3},   [&]{ return destructor_called_.load(); } };
-  synchronized_delay send_setpoints_delay_  { ms{20}, [&]{ return destructor_called_.load(); } };
+  using sleeper_t = synchronized<conditional_sleep>;
+  sleeper_t check_armed_delay_   { ms{20}, [&]{ return destructing(); } };
+  sleeper_t arm_delay_           { s{3},   [&]{ return destructing(); } };
+  sleeper_t check_mode_delay_    { ms{20}, [&]{ return destructing(); } };
+  sleeper_t change_mode_delay_   { s{3},   [&]{ return destructing(); } };
+  sleeper_t send_setpoints_delay_{ ms{20}, [&]{ return destructing(); } };
 
   std::vector<std::thread> persistent_tasks;
 };

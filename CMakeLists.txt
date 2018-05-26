@@ -2,19 +2,9 @@ cmake_minimum_required(VERSION 2.8.3)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(ROS_BUILD_TYPE Debug)
-add_compile_options(-g
+add_compile_options(
   -std=c++17
   -g
-  -Wall
-  -Wextra
-  -Wpedantic
-  -Wconversion
-  -Wswitch-default
-  -Wswitch-enum
-  -Wunreachable-code
-  -Wwrite-strings
-  -Wcast-align
-  -Wshadow
 )
 
 project(redbird_quadrotor_controller)
@@ -159,6 +149,20 @@ add_executable(${PROJECT_NAME}_node
   src/main.cc
   ${REDBIRD_QUADROTOR_CONTROLLER_SOURCES}
 )
+target_compile_options(${PROJECT_NAME}_node PRIVATE
+  -std=c++17
+  -g
+  -Wall
+  -Wextra
+  -Wpedantic
+  -Wconversion
+  -Wswitch-default
+  -Wswitch-enum
+  -Wunreachable-code
+  -Wwrite-strings
+  -Wcast-align
+  -Wshadow
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -214,12 +218,29 @@ target_link_libraries(${PROJECT_NAME}_node
 ## Testing ##
 #############
 
-## Add gtest based cpp test target and link libraries
-catkin_add_gtest(${PROJECT_NAME}-test
+set(TEST_SOURCES
   test/run_all_tests.cc
   src/rr/mavros_util_unittests.cc
-  src/rr/iarc/m7a/m7a_unittests.cc
+  src/rr/optional_unittests.cc
+  src/rr/conditional_sleep_unittests.cc
+  # src/rr/iarc/m7a/m7a_unittests.cc
   # src/rr/quadrotor/flightsys/flight_controller_unittests.cc
+)
+
+# tests
+add_executable(${PROJECT_NAME}_test
+  ${TEST_SOURCES}
+)
+add_test(${PROJECT_NAME}_test COMMAND ${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME})
+find_package(Threads REQUIRED)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE Threads::Threads)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE gtest)
+
+
+## Add gtest based cpp test target and link libraries
+catkin_add_gtest(${PROJECT_NAME}-test
+  ${TEST_SOURCES}
 )
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})

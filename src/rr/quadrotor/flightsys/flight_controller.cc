@@ -5,10 +5,6 @@ namespace rr {
 namespace quadrotor {
 namespace flightsys {
 
-class quadrotor {
- public:
-  virtual
-};
 
 i_flight_controller::~i_flight_controller() {};
 //i_quadrotor_interfaces::~i_quadrotor_interfaces() {};

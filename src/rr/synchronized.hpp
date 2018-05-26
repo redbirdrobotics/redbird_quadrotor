@@ -1,9 +1,11 @@
 #ifndef RR_SYNCHRONIZED_HPP_
 #define RR_SYNCHRONIZED_HPP_
 
+#include <functional>
 #include <mutex>
 #include <shared_mutex>
 #include <type_traits>
+#include <utility>
 
 
 #undef DISALLOW_EVIL_CONSTRUCTORS
@@ -23,14 +25,12 @@ class synchronized;
  * @brief
  *    Make a synchronized<T> using template deduction.
  *
- * @sa
- *    synchronized
+ * @sa synchronized
  */
 template <typename T> auto
 make_synchronized(T&& value) {
   return synchronized<T>{ std::forward<T>(value) };
 }
-
 
 /**
  * @brief
@@ -56,9 +56,9 @@ class synchronized final {
   value_t value_;
 
  public:
-  template <typename U = value_t>
-  synchronized(U&& initial_value = T{})
-    : value_(std::forward<U>(initial_value))
+  template <typename... Args>
+  explicit synchronized(Args&&... args)
+    : value_(std::forward<Args>(args)...)
   {}
 
   value_t get() const {

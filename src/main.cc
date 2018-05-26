@@ -1,4 +1,5 @@
 #include <rr/mavros_util.hpp>
+#include <rr/quadrotor/flight_sequence/circle.hpp>
 
 #include <ros/ros.h>
 
@@ -40,10 +41,23 @@ int main(int argc, char **argv) {
   auto ros_spinner = get_ros_async_spinner();
   ros_spinner.start();
 
+  using namespace rr;
+  using namespace rr::mavros_util;
+  using namespace rr::quadrotor;
+  using namespace rr::quadrotor::flight_sequence;
+
   auto mavros = std::make_shared<rr::mavros_util::mavros_adapter>(nh);
   mavros->arm();
   mavros->set_mode(rr::mavros_util::px4::operating_mode::OFFBOARD);
-  mavros->set_setpoints(arbitrary_setpoints());
+
+  auto setpoints = fully_ignored_mavros_setpoint_position();
+  auto update_setpoints = [&](const auto& quadrotor_setpoints) {
+    setpoints << quadrotor_setpoints;
+    ROS_INFO_STREAM(setpoints);
+    mavros->set_setpoints(setpoints);
+  };
+
+  circle(update_setpoints);
 
   ros::waitForShutdown();
   return 0;

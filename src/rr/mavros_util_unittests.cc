@@ -20,7 +20,6 @@ TEST(MavrosUtil, ignore_all_but_py) {
     | target::IGNORE_AFX
     | target::IGNORE_AFY
     | target::IGNORE_AFZ
-    | target::FORCE
     | target::IGNORE_YAW
     | target::IGNORE_YAW_RATE;
 
