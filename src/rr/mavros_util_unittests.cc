@@ -46,8 +46,3 @@ TEST(MavrosUtil, ignore_all_but_nothing) {
   auto all_but_nothing = ignore_all_but();
   EXPECT_EQ(kIgnoreAll, all_but_nothing);
 }
-
-TEST(MavrosUtil, mavros_adapter) {
-  auto adapter = mavros_adapter{};
-
-}

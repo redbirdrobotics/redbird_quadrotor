@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 
 set(CMAKE_BUILD_TYPE Debug)
-add_compile_options(
+set(ROS_BUILD_TYPE Debug)
+add_compile_options(-g
   -std=c++17
   -g
   -Wall
@@ -15,9 +16,8 @@ add_compile_options(
   -Wcast-align
   -Wshadow
 )
-set(ROS_BUILD_TYPE Debug)
-project(redbird_quadrotor_controller)
 
+project(redbird_quadrotor_controller)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -164,7 +164,7 @@ add_executable(${PROJECT_NAME}_node
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
+# set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above

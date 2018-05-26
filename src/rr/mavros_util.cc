@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include <string>
+
 namespace rr {
 namespace mavros_util {
 
@@ -90,18 +91,28 @@ mavros_adapter::call_server(CallServer&& call_server_func,
 
 server_response
 mavros_adapter::enable_current_arming_command() {
-  return call_server(
-    [&]{ return arming_client_.call(arm_cmd_); },
-    [&]{ return arm_cmd_.response.success; }
-  );
+  server_response response;
+  using cmd_t = decltype(arm_cmd_)::value_t;
+  arm_cmd_.alter([&](cmd_t& cmd) {
+    response = call_server(
+      [&] { return arming_client_.call(cmd); },
+      [&] { return cmd.response.success; }
+    );
+  });
+  return response;
 }
 
 server_response
 mavros_adapter::enable_current_mode() {
-  return call_server(
-    [&]{ return set_mode_client_.call(operating_mode_cmd_); },
-    [&]{ return operating_mode_cmd_.response.mode_sent; }
-  );
+  server_response result;
+  using cmd_t = decltype(operating_mode_cmd_)::value_t;
+  operating_mode_cmd_.alter([&](cmd_t& cmd) {
+    result = call_server(
+      [&]{ return set_mode_client_.call(cmd); },
+      [&]{ return cmd.response.mode_sent; }
+    );
+  });
+  return result;
 }
 
 void
@@ -117,7 +128,7 @@ mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
     api_ids::topics::published::kState,
     mavros_state_queue_size,
     [&](const mavros_msgs::State::ConstPtr& msg){
-      mavros_state_ = *msg;
+      mavros_state_.set(*msg);
     }
   );
 
@@ -135,28 +146,30 @@ mavros_adapter::mavros_adapter(ros::NodeHandle& nh) {
     mavros_setpoint_queue_size
   );
 
-  persistent_tasks.emplace_back(
-    [&] {
-      while (!destructor_called_) {
-        bool server_called = publish_target_mode();
-        if (server_called) change_mode_delay_.sleep();
-        else check_mode_delay_.sleep();
-      }
-    },
-    [&] {
-      while (!destructor_called_) {
-        bool server_called = publish_target_arm_cmd();
-        if (server_called) arm_delay_.sleep();
-        else check_armed_delay_.sleep();
-      }
-    },
-    [&] {
-      while (!destructor_called_) {
-        publish_setpoints();
-        send_setpoints_delay_.sleep();
-      }
+  auto set_mode = [&] {
+    while (!destructor_called_) {
+      bool server_called = publish_target_mode();
+      if (server_called) change_mode_delay_.sleep();
+      else check_mode_delay_.sleep();
     }
-  );
+  };
+  auto set_armed_cmd = [&] {
+    while (!destructor_called_) {
+      bool server_called = publish_target_arm_cmd();
+      if (server_called) arm_delay_.sleep();
+      else check_armed_delay_.sleep();
+    }
+  };
+  auto send_setpoints = [&] {
+    while (!destructor_called_) {
+      publish_setpoints();
+      send_setpoints_delay_.sleep();
+    }
+  };
+  persistent_tasks.reserve(3);
+  persistent_tasks.emplace_back(std::move(set_mode));
+  persistent_tasks.emplace_back(std::move(set_armed_cmd));
+  persistent_tasks.emplace_back(std::move(send_setpoints));
 }
 
 mavros_adapter::~mavros_adapter() {
@@ -167,14 +180,19 @@ mavros_adapter::~mavros_adapter() {
 
 px4::operating_mode
 mavros_adapter::mode() const {
-  auto mode = px4::string_to_operating_mode(mavros_state_.mode);
+  auto mode = px4::string_to_operating_mode(mavros_state_.get().mode);
+  ros::spinOnce();
   return mode;
 }
 
 void
 mavros_adapter::set_mode(px4::operating_mode mode) {
   current_target_mode_ = mode;
-  operating_mode_cmd_.request.custom_mode = px4::to_string(mode);
+  auto mode2=mavros_msgs::SetMode{};
+  mode2.request.custom_mode = std::string{};
+  operating_mode_cmd_.alter([&](auto& cmd) {
+    cmd.request.custom_mode = px4::to_string(mode);
+  });
 }
 
 

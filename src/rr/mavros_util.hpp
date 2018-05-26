@@ -1,6 +1,8 @@
 #ifndef RR_MAVROS_UTIL_HPP_
 #define RR_MAVROS_UTIL_HPP_
 
+#include <rr/synchronized.hpp>
+
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/SetMode.h>
@@ -10,6 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 
 namespace rr {
@@ -123,7 +126,7 @@ ignore_all_but(decltype(kIgnoreAll) mask = 0) {
  *    ignore_all_but
  *    kIgnoreAll
  */
-inline auto
+inline target_position
 fully_ignored_mavros_setpoint_position() {
   auto setpoint_position_msg = target_position{};
   setpoint_position_msg.type_mask = kIgnoreAll;
@@ -170,10 +173,7 @@ to_string(operating_mode mode);
 
 } // namespace px4
 
-class i_mavros_adapter {
- public:
-  virtual ~i_mavros_adapter();
-};
+
 
 class synchronized_delay {
  private:
@@ -181,19 +181,23 @@ class synchronized_delay {
 
   std::chrono::microseconds duration_;
   mutable std::mutex duration_mutex_;
+  std::function<bool()> should_stop_;
 
   void sleep_for(std::chrono::microseconds&& us) const {
     auto start = std::chrono::high_resolution_clock::now();
     auto end = start + us;
     do {
       std::this_thread::yield();
-    } while (std::chrono::high_resolution_clock::now() < end);
+    } while (!should_stop_() && std::chrono::high_resolution_clock::now() < end);
   }
 
  public:
-  explicit synchronized_delay(std::chrono::microseconds duration
-                        = std::chrono::microseconds{})
+  template <typename ShouldStopFunc>
+  explicit synchronized_delay(
+      std::chrono::microseconds duration,
+      ShouldStopFunc&& stop_sleep_when_true)
     : duration_(duration)
+    , should_stop_(std::forward<ShouldStopFunc>(stop_sleep_when_true))
   {}
 
   template <typename Duration>
@@ -207,42 +211,11 @@ class synchronized_delay {
     return duration_;
   }
 
-  void sleep() const {
+  void sleep() const { // TODO: or_until function
     sleep_for(duration());
   }
 };
 
-template <typename T>
-class sychronized final {
- private:
-  using Type = std::remove_reference_t<T>;
-  using lock = std::lock_guard<std::mutex>;
-  Type value_;
-  mutable std::mutex mutex_{};
-
- public:
-  template <typename U>
-  sychronized(U&& value)
-    : value_(std::forward<U>(value))
-  {}
-
-  template <typename U> auto
-  set(U&& new_value) {
-    lock l(mutex_);
-    value_ = std::forward<U>(new_value);
-  }
-
-  Type get() const {
-    lock l(mutex_);
-    return value_;
-  }
-
-  template <typename Mutator>
-  void alter(Mutator&& func) {
-    lock l(mutex_);
-    std::forward<Mutator>(func)(value_);
-  }
-};
 
 class mavros_adapter {
   // TODO: this class should know less. In particular, don't pass NodeHandle in
@@ -264,6 +237,15 @@ class mavros_adapter {
   void arm()    { return set_armed(true); }
   void disarm() { return set_armed(false); }
 
+
+  template <typename T> void
+  set_setpoints(T&& target) { setpoints_.set(std::forward<T>(target)); }
+  target_position setpoints() const { return setpoints_.get(); }
+
+  template <typename T> void
+  set_arm_cmd(T&& cmd) { arm_cmd_.set(std::forward<T>(cmd)); }
+  mavros_msgs::CommandBool arm_cmd() const { return arm_cmd_.get(); }
+
   /**
    * @brief
    *    Indicates that mavros is:
@@ -277,16 +259,6 @@ class mavros_adapter {
 
  private:
   using lock = std::lock_guard<std::mutex>;
-  std::vector<std::thread> persistent_tasks{};
-  std::atomic_bool destructor_called_{ false };
-
-  using ms = std::chrono::milliseconds;
-  using s = std::chrono::seconds;
-  synchronized_delay check_armed_delay_     { ms{20} };
-  synchronized_delay arm_delay_             { s{3} };
-  synchronized_delay check_mode_delay_      { ms{20} };
-  synchronized_delay change_mode_delay_     { s{3} };
-  synchronized_delay send_setpoints_delay_  { ms{20} };
 
   server_response
   enable_current_arming_command();
@@ -295,8 +267,7 @@ class mavros_adapter {
   enable_current_mode();
 
   mavros_msgs::State mavros_state() const {
-    lock l(mavros_state_mutex_);
-    return mavros_state_;
+    return mavros_state_.get();
   }
 
   bool publish_target_mode() {
@@ -325,44 +296,7 @@ class mavros_adapter {
   }
 
   void publish_setpoints() {
-    setpoint_publisher_.publish(setpoints_);
-  }
-
-  ros::Subscriber state_sub_;
-  mavros_msgs::State mavros_state_{};
-  mutable std::mutex mavros_state_mutex_{};
-
-  ros::ServiceClient arming_client_;
-
-  mavros_msgs::CommandBool arm_cmd_{};
-  mutable std::mutex arm_cmd_mutex_{};
-  mavros_msgs::CommandBool arm_cmd() const {
-    lock l(arm_cmd_mutex_);
-    return arm_cmd_;
-  }
-  template <typename T>
-  mavros_msgs::CommandBool set_arm_cmd(T&& cmd) {
-    lock l(arm_cmd_mutex_);
-    arm_cmd_ = std::forward<T>(cmd);
-  }
-
-  std::atomic<px4::operating_mode> current_target_mode_{}; // TODO static assert lock free?
-
-  ros::ServiceClient set_mode_client_;
-  mavros_msgs::SetMode operating_mode_cmd_{};
-
-  ros::Publisher setpoint_publisher_;
-  synchronized<target_position> setpoints_
-    = mavros_util::fully_ignored_mavros_setpoint_position();
-  mutable std::mutex setpoints_mutex_;
-  target_position setpoints() const {
-    lock l(setpoints_mutex_);
-    return setpoints_;
-  }
-  template <typename T>
-  target_position set_setpoints(T&& target) {
-    lock l(setpoints_mutex_);
-    setpoints_ = std::forward<T>(target);
+    setpoint_publisher_.publish(setpoints_.get());
   }
 
   template <typename CallServer, typename CheckSuccess>
@@ -371,6 +305,33 @@ class mavros_adapter {
 
   void
   set_armed(bool arm);
+
+  ros::Subscriber state_sub_;
+  synchronized<mavros_msgs::State> mavros_state_{};
+
+  ros::ServiceClient arming_client_;
+  synchronized<mavros_msgs::CommandBool> arm_cmd_{};
+
+  ros::ServiceClient set_mode_client_;
+  synchronized<mavros_msgs::SetMode> operating_mode_cmd_{};
+  // TODO static assert is_lock_free?
+  std::atomic<px4::operating_mode> current_target_mode_{};
+
+  ros::Publisher setpoint_publisher_;
+  synchronized<target_position> setpoints_
+    { mavros_util::fully_ignored_mavros_setpoint_position() };
+
+  std::atomic_bool destructor_called_{ false };
+
+  using ms = std::chrono::milliseconds;
+  using s = std::chrono::seconds;
+  synchronized_delay check_armed_delay_     { ms{20}, [&]{ return destructor_called_.load(); } };
+  synchronized_delay arm_delay_             { s{3},   [&]{ return destructor_called_.load(); } };
+  synchronized_delay check_mode_delay_      { ms{20}, [&]{ return destructor_called_.load(); } };
+  synchronized_delay change_mode_delay_     { s{3},   [&]{ return destructor_called_.load(); } };
+  synchronized_delay send_setpoints_delay_  { ms{20}, [&]{ return destructor_called_.load(); } };
+
+  std::vector<std::thread> persistent_tasks;
 };
 
 } // namespace mavros_util
