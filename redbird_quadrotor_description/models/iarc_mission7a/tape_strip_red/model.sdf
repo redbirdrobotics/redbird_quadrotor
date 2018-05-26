@@ -1,0 +1,24 @@
+<?xml version='1.0'?>
+<sdf version='1.6'>
+<model name='tape_strip_red'>
+  <static>true</static>
+  <link name="tape">
+    <visual name="tape">
+      <geometry>
+        <box>
+          <!-- IARC Mission 7A Arena tape -->
+          <!-- (20m + 5cm) x 5cm x 0.3mm -->
+          <!-- 0.3mm ~ 12 mils ~ duct tape thickness -->
+          <!-- For more detail, see https://github.com/redbirdrobotics/corvus/raw/bd86581eacb976aad8b599dfbe0c9c6f48c775e6/docs/iarc_mission7a_arena_layout.jpg -->
+          <size>20.05 0.05 0.0003</size>
+        </box>
+      </geometry>
+      <material>
+        <ambient>1 0 0 1</ambient>
+        <diffuse>1 0 0 1</diffuse>
+        <specular>1 0 0 1</specular>
+      </material>
+    </visual>
+  </link>
+</model>
+</sdf>

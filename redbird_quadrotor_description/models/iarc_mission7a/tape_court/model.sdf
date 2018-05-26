@@ -1,0 +1,223 @@
+<?xml version='1.0'?>
+<sdf version='1.6'>
+<model name='tape_court'>
+  <static>true</static>
+
+  <!-- columns -->
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>0.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>1.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>2.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>3.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>4.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>5.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>6.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>7.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>8.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>9.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>11.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>12.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>13.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>14.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>15.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>16.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>17.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>18.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>19.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>20.025 10.025 0.0 0.0 0.0 1.5707963267948966</pose>
+  </include>
+  
+
+  <!-- rows -->
+  
+  <include>
+    <uri>model://tape_strip_green</uri>
+    <pose>10.025 0.025 0.0003 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 1.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 2.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 3.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 4.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 5.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 6.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 7.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 8.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 9.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 10.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 11.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 12.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 13.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 14.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 15.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 16.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 17.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 18.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip</uri>
+    <pose>10.025 19.025 0.0 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+  <include>
+    <uri>model://tape_strip_red</uri>
+    <pose>10.025 20.025 0.0003 0.0 0.0 3.141592653589793</pose>
+  </include>
+  
+
+</model>
+</sdf>
