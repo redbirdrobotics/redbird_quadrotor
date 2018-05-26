@@ -1,3 +1,0 @@
-[submodule "src/3rdparty/units"]
-	path = redbird_quadrotor_controller/src/3rdparty/units
-	url = https://github.com/nholthaus/units.git
