@@ -1,4 +1,4 @@
-# redbird_quadrotor_controller
+# redbird_quadrotor
 Autonomous flight control for quadrotor drones.
 
 ## Build & run instructions
