@@ -11,10 +11,7 @@ Autonomous flight control for quadrotor drones.
 ```sh
 git clone https://github.com/redbirdrobotics/px4-firmware.git && \
 cd px4-firmware && \
-make posix_sitl_default gazebo
-
-# After build, gazebo will automatically run. Ctrl+C the terminal and wait for shutdown
-# Note: make will say the build failed, but this has not caused issues this far. Probably ok to ignore.
+make posix_sitl_default gazebo # Ctrl+C after gazebo starts
 ```
 
 ### Start the Gazebo simulation and Mavros node
@@ -23,6 +20,18 @@ cd px4-firmware && \
 source setup_px4_sitl_gazebo.bash && \
 roslaunch px4 mavros_posix_sitl.launch
 ```
+
+or run our own simulated world:
+
+```sh
+cd redbird_quadrotor # from this repository's root
+cd <path/to/px4-firmware> && \ # insert path here
+. setup_px4_sitl_gazebo.bash && \
+cd - && \
+. devel/setup.bash && \
+roslaunch redbird_quadrotor_controller gazebosim.launch
+```
+
 
 ### Start the flight control node
 ```sh
