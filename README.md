@@ -11,13 +11,13 @@ Autonomous flight control for quadrotor drones.
 ```sh
 git clone https://github.com/redbirdrobotics/px4-firmware.git && \
 cd px4-firmware && \
+git submodule update --init --recursive && \
 make posix_sitl_default gazebo # Ctrl+C after gazebo starts
 ```
 
 ### Start the Gazebo simulation and Mavros node
 ```sh
-cd px4-firmware && \
-source setup_px4_sitl_gazebo.bash && \
+. setup_px4_sitl_gazebo.bash && \
 roslaunch px4 mavros_posix_sitl.launch
 ```
 
