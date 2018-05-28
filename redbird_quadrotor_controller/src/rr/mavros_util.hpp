@@ -117,20 +117,49 @@ ignore_all_but(decltype(kIgnoreAll) mask = 0) {
 }
 
 
+namespace detail {
+
 /**
  * @brief
- *    Construct a target_position message with all ignore bitfields set. (i.e.,
- *    instructs mavros to ignore all setpoints.
+ *    Construct a target_position message with all "ignore" bitfields set.
+ *    (i.e., instructing mavros to ignore all setpoints)
  *
  * @sa
  *    ignore_all_but
  *    kIgnoreAll
  */
 inline target_position
-fully_ignored_mavros_setpoint_position() {
+fully_ignored_mavros_setpoints_message() {
   auto setpoint_position_msg = target_position{};
   setpoint_position_msg.type_mask = kIgnoreAll;
   return setpoint_position_msg;
+}
+
+constexpr const char* kDefaultMavrosMessageHeaderFrameId = "redbird";
+constexpr const char* kDefaultMavrosCoordinateFrame
+  = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+
+} // namespace detail
+
+
+/**
+ * @brief
+ *    Construct a target_position message with:
+ *      - all "ignore" bitfields set
+ *      - default message header
+ *      - default coordinate frame
+ *
+ * @sa
+ *    detail::fully_ignored_mavros_setpoints_message
+ *    detail::kDefaultMavrosMessageHeaderFrameId
+ *    detail::kDefaultMavrosCoordinateFrame
+ */
+inline target_position
+default_mavros_setpoints_message() {
+  auto setpoints = detail::fully_ignored_mavros_setpoints_message();
+  setpoints.header.frame_id = detail::kDefaultMavrosMessageHeaderFrameId;
+  setpoints.coordinate_frame = detail::kDefaultMavrosCoordinateFrame;
+  return setpoints;
 }
 
 
@@ -142,6 +171,8 @@ namespace px4 {
  *
  * @sa
  *    http://wiki.ros.org/mavros/CustomModes
+ *    string_to_operating_mode
+ *    to_string
  */
 enum class operating_mode {
   MANUAL,
@@ -279,7 +310,7 @@ class mavros_adapter {
 
   ros::Publisher setpoint_publisher_;
   synchronized<target_position> setpoints_
-    { mavros_util::fully_ignored_mavros_setpoint_position() };
+    { mavros_util::default_mavros_setpoints_message() };
 
   std::atomic_bool destructor_called_{ false };
   bool destructing() { return destructor_called_.load(); }

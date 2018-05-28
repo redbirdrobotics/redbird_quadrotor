@@ -7,28 +7,6 @@
 
 
 auto
-arbitrary_setpoints() {
-  using namespace ::rr::mavros_util;
-  auto setpoints = fully_ignored_mavros_setpoint_position();
-  setpoints.header.frame_id = "base_link";
-  setpoints.coordinate_frame
-      = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-  setpoints.position.x = 3.;
-  setpoints.position.y = 3.;
-  setpoints.position.z = 3.;
-  setpoints.yaw_rate = 2.f;
-  setpoints.type_mask = rr::mavros_util::ignore_all_but(
-      mavros_msgs::PositionTarget::IGNORE_YAW_RATE
-    | mavros_msgs::PositionTarget::IGNORE_PX
-    | mavros_msgs::PositionTarget::IGNORE_PY
-    | mavros_msgs::PositionTarget::IGNORE_PZ
-  );
-
-  setpoints.header.stamp = ros::Time::now();
-  return setpoints;
-}
-
-auto
 get_ros_async_spinner() {
   const std::uint32_t num_cores = std::thread::hardware_concurrency();
   auto spinner = ros::AsyncSpinner{num_cores};
@@ -50,7 +28,7 @@ int main(int argc, char **argv) {
   mavros->arm();
   mavros->set_mode(rr::mavros_util::px4::operating_mode::OFFBOARD);
 
-  auto setpoints = fully_ignored_mavros_setpoint_position();
+  auto setpoints = default_mavros_setpoints_message();
   auto update_setpoints = [&](const auto& quadrotor_setpoints) {
     setpoints << quadrotor_setpoints;
     ROS_INFO_STREAM(setpoints);
