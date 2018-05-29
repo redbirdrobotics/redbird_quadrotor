@@ -161,7 +161,6 @@ target_compile_options(${PROJECT_NAME}_node PRIVATE
   -Wunreachable-code
   -Wwrite-strings
   -Wcast-align
-  -Wshadow
 )
 
 ## Rename C++ executable without prefix

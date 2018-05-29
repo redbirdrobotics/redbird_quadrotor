@@ -33,9 +33,14 @@ int main(int argc, char **argv) {
     setpoints << quadrotor_setpoints;
     ROS_INFO_STREAM(setpoints);
     mavros->set_setpoints(setpoints);
+    ros::Rate(20.).sleep();
   };
 
-  circle(update_setpoints);
+  auto terminate_when = [&] {
+    return !ros::ok();
+  };
+
+  circle(update_setpoints, terminate_when);
 
   ros::waitForShutdown();
   return 0;

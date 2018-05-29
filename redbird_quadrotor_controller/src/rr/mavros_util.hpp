@@ -135,9 +135,10 @@ fully_ignored_mavros_setpoints_message() {
   return setpoint_position_msg;
 }
 
-constexpr const char* kDefaultMavrosMessageHeaderFrameId = "redbird";
-constexpr const char* kDefaultMavrosCoordinateFrame
-  = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+constexpr const char*
+  kDefaultMavrosMessageHeaderFrameId = "redbird";
+constexpr target_position::_coordinate_frame_type
+  kDefaultMavrosCoordinateFrame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
 
 } // namespace detail
 
@@ -236,15 +237,6 @@ class mavros_adapter {
   template <typename T> void
   set_arm_cmd(T&& cmd) { arm_cmd_.set(std::forward<T>(cmd)); }
   mavros_msgs::CommandBool arm_cmd() const { return arm_cmd_.get(); }
-
-  /**
-   * @brief
-   *    Indicates that mavros is:
-   *      1. connected to FCU
-   *      2. armed
-   *      3. in the currently-set operating mode
-   */
-  bool ready();
 
   virtual ~mavros_adapter();
 
