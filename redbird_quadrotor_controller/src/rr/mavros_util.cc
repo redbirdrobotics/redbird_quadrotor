@@ -82,11 +82,11 @@ mavros_adapter::call_server(CallServer&& call_server_func,
   if (!mavros_state().connected)
     return r::fcu_not_connected;
 
-  auto able_to_reach_server = std::forward<CallServer>(call_server_func)();
+  auto able_to_reach_server = call_server_func();
   if (!able_to_reach_server)
     return r::cannot_reach_server;
 
-  return std::forward<CheckSuccess>(check_success)() ? r::success : r::denied;
+  return check_success() ? r::success : r::denied;
 }
 
 server_response
