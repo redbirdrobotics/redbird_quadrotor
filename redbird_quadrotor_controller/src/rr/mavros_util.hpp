@@ -3,12 +3,14 @@
 
 #include <rr/synchronized.hpp>
 #include <rr/conditional_sleep.hpp>
+#include <rr/optional.hpp>
 
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <ros/ros.h>
+#include <units.h>
 
 #include <atomic>
 #include <chrono>
@@ -25,8 +27,33 @@ namespace mavros_util {
  *
  * @note
  *    Units in meters, m/s, radians, radians/s
+ *
+ * @sa
+ *    quadrotor::setpoints
  */
 using target_position = mavros_msgs::PositionTarget;
+
+
+/**
+ * @brief
+ *    The bitmask for mavros_msgs::PositionTarget which directs mavros to
+ *    ignore all fields.
+ *
+ * @sa
+ *    target_position
+ */
+constexpr target_position::_type_mask_type kIgnoreAll =
+    target_position::IGNORE_PX
+  | target_position::IGNORE_PY
+  | target_position::IGNORE_PZ
+  | target_position::IGNORE_VX
+  | target_position::IGNORE_VY
+  | target_position::IGNORE_VZ
+  | target_position::IGNORE_AFX
+  | target_position::IGNORE_AFY
+  | target_position::IGNORE_AFZ
+  | target_position::IGNORE_YAW
+  | target_position::IGNORE_YAW_RATE;
 
 
 /**
@@ -69,28 +96,6 @@ struct api_ids {
     };
   };
 };
-
-
-/**
- * @brief
- *    The bitmask for mavros_msgs::PositionTarget which directs mavros to
- *    ignore all fields.
- *
- * @sa
- *    mavros_msgs::PositionTarget::IGNORE_PX
- */
-constexpr target_position::_type_mask_type kIgnoreAll =
-    target_position::IGNORE_PX
-  | target_position::IGNORE_PY
-  | target_position::IGNORE_PZ
-  | target_position::IGNORE_VX
-  | target_position::IGNORE_VY
-  | target_position::IGNORE_VZ
-  | target_position::IGNORE_AFX
-  | target_position::IGNORE_AFY
-  | target_position::IGNORE_AFZ
-  | target_position::IGNORE_YAW
-  | target_position::IGNORE_YAW_RATE;
 
 
 /**
@@ -162,21 +167,37 @@ enum class operating_mode {
   MODE_UNSUPPORTED // to handle unknown states
 };
 
-
-using mavros_state_mode_string_t = decltype(mavros_msgs::State{}.mode);
-
 operating_mode
-string_to_operating_mode(const mavros_state_mode_string_t& mode_string);
+string_to_operating_mode(const std::string& mode_string);
 
-mavros_state_mode_string_t
+std::string
 to_string(operating_mode mode);
 
 } // namespace px4
 
 
+template <typename MavrosResolver,
+          typename AsyncArmingClient,
+          typename AsyncSetpointPublisher>
+class _mavros_adapter {
+  typename MavrosResolver::mavros_arming_client_ arming_client_{};
+  typename MavrosResolver::mavros_mode_client_ mode_client_{};
+  typename MavrosResolver::setpoint_publisher_ setpoint_publisher{};
+  void arm();
+  void disarm();
+  bool is_armed();
+
+  void set_target_mode(px4::operating_mode mode);
+  px4::operating_mode target_mode();
+  void current_reported_mode();
+
+};
 
 
-
+/**
+ * @brief
+ *    Asynchronously
+ */
 class mavros_adapter {
   // TODO: this class should know less. In particular, don't pass NodeHandle in
   // c'tor.
