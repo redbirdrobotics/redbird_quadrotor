@@ -122,6 +122,43 @@ circle(SendSetpoints&& send_setpoints, CancelExecution&& should_terminate) {
   }
 }
 
+template <typename SendSetpoints, typename CancelExecution>
+void
+takeoff_and_land(SendSetpoints&& send_setpoints, CancelExecution&& should_terminate) {
+  using namespace units;
+  using namespace units::literals;
+  using namespace units::angle;
+  using namespace units::length;
+  using namespace units::math;
+  namespace um = units::math;
+
+  const auto altitude = 2.75_m;
+
+  auto setpoints = quadrotor_setpoints{};
+  setpoints.x = 0._m;
+  setpoints.y = 0._m;
+  setpoints.z = altitude;
+
+  using clock = std::chrono::high_resolution_clock;
+
+  const auto start = clock::now();
+
+  time::millisecond_t t;
+  const auto loiter_time = std::chrono::seconds{5};
+  while (!should_terminate() && t < start + loiter_time) {
+    t = clock::now();
+    send_setpoints(setpoints);
+  }
+  
+  setpoints.z = 0._m;
+
+  const auto landing_delay = std::chrono::seconds{10};
+
+  while (!should_terminate() && t < start + landing_delay) {
+    t = clock::now();
+    send_setpoints(setpoints);
+  }
+}
 
 } // namespace rr
 } // namespace quadrotor

@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     return !ros::ok();
   };
 
-  circle(update_setpoints, terminate_when);
+  takeoff_and_land(update_setpoints, terminate_when);
 
   ros::waitForShutdown();
   return 0;
