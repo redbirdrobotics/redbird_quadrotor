@@ -132,7 +132,7 @@ takeoff_and_land(SendSetpoints&& send_setpoints, CancelExecution&& should_termin
   using namespace units::math;
   namespace um = units::math;
 
-  const auto altitude = 2.75_m;
+  const auto altitude = 2._m;
 
   auto setpoints = quadrotor_setpoints{};
   setpoints.x = 0._m;
@@ -142,15 +142,14 @@ takeoff_and_land(SendSetpoints&& send_setpoints, CancelExecution&& should_termin
   using clock = std::chrono::high_resolution_clock;
 
   const auto start = clock::now();
-
-  time::millisecond_t t;
-  const auto loiter_time = std::chrono::seconds{5};
-  while (!should_terminate() && t < start + loiter_time) {
+  auto t = clock::now();
+  const auto loiter_time = std::chrono::seconds{6};
+  while (!should_terminate() && t < (start + loiter_time)) {
     t = clock::now();
     send_setpoints(setpoints);
   }
   
-  setpoints.z = 0._m;
+  setpoints.z = -1._m;
 
   const auto landing_delay = std::chrono::seconds{10};
 
