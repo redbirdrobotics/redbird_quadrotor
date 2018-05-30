@@ -3,6 +3,7 @@
 
 #include <rr/optional.hpp>
 #include <rr/mavros_util.hpp>
+#include <rr/quadrotor.hpp>
 
 #include <ros/ros.h>
 #include <units.h>
@@ -19,66 +20,10 @@ namespace quadrotor {
 namespace flight_sequence {
 
 
-struct quadrotor_setpoints {
- private:
-  using second_t = units::time::second_t;
-
-  template <typename T>
-  using optional = rr::optional<T>;
-
- public:
-  using radian_t = units::angle::radian_t;
-  using radian_per_s_t = std::decay_t<decltype(radian_t{} / second_t{})>;
-  using meter_t = units::length::meter_t;
-
-  optional<meter_t> x{};
-  optional<meter_t> y{};
-  optional<meter_t> z{};
-  optional<radian_t> yaw{};
-  optional<radian_per_s_t> yaw_rate{};
-};
-
-class i_quadrotor_controller {
- public:
-  virtual ~i_quadrotor_controller();
-  virtual void operator <<(const quadrotor_setpoints& setpoints) = 0;
-};
-i_quadrotor_controller::~i_quadrotor_controller() {}
-
-
 enum class sequence {
   takeoff_and_land,
   circle,
 };
-
-void operator <<(mavros_util::target_position& t,
-                 const quadrotor_setpoints& sp) {
-  using tp = mavros_util::target_position;
-  auto type_mask = mavros_util::kIgnoreAll;
-  using tmt = decltype(type_mask);
-  if (sp.x.is_set()) {
-    t.position.x = sp.x.get().value();
-    type_mask &= (tmt)~tp::IGNORE_PX;
-  }
-  if (sp.y.is_set()) {
-    t.position.y = sp.y.get().value();
-    type_mask &= (tmt)~tp::IGNORE_PY;
-  }
-  if (sp.z.is_set()) {
-    t.position.z = sp.z.get().value();
-    type_mask &= (tmt)~tp::IGNORE_PZ;
-  }
-  if (sp.yaw.is_set()) {
-    t.yaw = static_cast<decltype(t.yaw)>(sp.yaw.get().value());
-    type_mask &= (tmt)~tp::IGNORE_YAW;
-  }
-  if (sp.yaw_rate.is_set()) {
-    t.yaw_rate = static_cast<decltype(t.yaw_rate)>(sp.yaw_rate.get().value());
-    type_mask &= (tmt)~tp::IGNORE_YAW_RATE;
-  }
-
-  t.type_mask = std::move(type_mask);
-}
 
 template <typename SendSetpoints, typename CancelExecution>
 void
