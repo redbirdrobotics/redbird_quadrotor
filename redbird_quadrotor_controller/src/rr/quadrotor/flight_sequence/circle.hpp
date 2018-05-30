@@ -47,6 +47,7 @@ i_quadrotor_controller::~i_quadrotor_controller() {}
 
 
 enum class sequence {
+  takeoff_and_land,
   circle,
 };
 
@@ -54,34 +55,34 @@ void operator <<(mavros_util::target_position& t,
                  const quadrotor_setpoints& sp) {
   using tp = mavros_util::target_position;
   auto type_mask = mavros_util::kIgnoreAll;
-
+  using tmt = decltype(type_mask);
   if (sp.x.is_set()) {
     t.position.x = sp.x.get().value();
-    type_mask ^= tp::IGNORE_PX;
+    type_mask &= (tmt)~tp::IGNORE_PX;
   }
   if (sp.y.is_set()) {
     t.position.y = sp.y.get().value();
-    type_mask ^= tp::IGNORE_PY;
+    type_mask &= (tmt)~tp::IGNORE_PY;
   }
   if (sp.z.is_set()) {
     t.position.z = sp.z.get().value();
-    type_mask ^= tp::IGNORE_PZ;
+    type_mask &= (tmt)~tp::IGNORE_PZ;
   }
   if (sp.yaw.is_set()) {
     t.yaw = static_cast<decltype(t.yaw)>(sp.yaw.get().value());
-    type_mask ^= tp::IGNORE_YAW;
+    type_mask &= (tmt)~tp::IGNORE_YAW;
   }
   if (sp.yaw_rate.is_set()) {
     t.yaw_rate = static_cast<decltype(t.yaw_rate)>(sp.yaw_rate.get().value());
-    type_mask ^= tp::IGNORE_YAW_RATE;
+    type_mask &= (tmt)~tp::IGNORE_YAW_RATE;
   }
 
   t.type_mask = std::move(type_mask);
 }
 
-template <typename T>
+template <typename SendSetpoints, typename CancelExecution>
 void
-circle(T&& send_setpoints) {
+circle(SendSetpoints&& send_setpoints, CancelExecution&& should_terminate) {
   using namespace units;
   using namespace units::literals;
   using namespace units::angle;
@@ -90,7 +91,7 @@ circle(T&& send_setpoints) {
   namespace um = units::math;
 
   const auto altitude = 2.75_m;
-  const auto radius = 10._m;
+  const auto radius = 3._m;
   const auto revolution_period = 15._s;
   const radian_t _2pi = 360._deg;
 
@@ -112,7 +113,7 @@ circle(T&& send_setpoints) {
   using clock = std::chrono::high_resolution_clock;
   const auto start = clock::now();
   time::millisecond_t t;
-  while (ros::ok()) {
+  while (!should_terminate()) {
     t = clock::now() - start;
     radian_t theta = theta_at_t(t);
     std::tie(setpoints.x, setpoints.y) = xy_at_theta(theta);
@@ -121,6 +122,42 @@ circle(T&& send_setpoints) {
   }
 }
 
+template <typename SendSetpoints, typename CancelExecution>
+void
+takeoff_and_land(SendSetpoints&& send_setpoints, CancelExecution&& should_terminate) {
+  using namespace units;
+  using namespace units::literals;
+  using namespace units::angle;
+  using namespace units::length;
+  using namespace units::math;
+  namespace um = units::math;
+
+  const auto altitude = 2._m;
+
+  auto setpoints = quadrotor_setpoints{};
+  setpoints.x = 0._m;
+  setpoints.y = 0._m;
+  setpoints.z = altitude;
+
+  using clock = std::chrono::high_resolution_clock;
+
+  const auto start = clock::now();
+  auto t = clock::now();
+  const auto loiter_time = std::chrono::seconds{6};
+  while (!should_terminate() && t < (start + loiter_time)) {
+    t = clock::now();
+    send_setpoints(setpoints);
+  }
+  
+  setpoints.z = -1._m;
+
+  const auto landing_delay = std::chrono::seconds{10};
+
+  while (!should_terminate() && t < start + landing_delay) {
+    t = clock::now();
+    send_setpoints(setpoints);
+  }
+}
 
 } // namespace rr
 } // namespace quadrotor
